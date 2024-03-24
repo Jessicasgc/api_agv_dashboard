@@ -8,6 +8,7 @@ use Illuminate\Validation\Rule;
 use App\Models\ItemType;
 use Validator;
 use Haruncpi\LaravelIdGenerator\IdGenerator;
+use Illuminate\Support\Str;
 
 class ItemTypesController extends Controller
 {
@@ -32,7 +33,10 @@ class ItemTypesController extends Controller
     public function store(Request $request)
     {
         $storeData = $request->all();
-        $type_code = IdGenerator::generate(['table' => 'item_types', 'field' => 'type_code', 'length' => 10, 'prefix' => 'Type-']);
+        $uuid = Str::uuid();
+        $uniqueCode = substr($uuid, 0, 8); 
+        $type_code = 'Type-' . $uniqueCode;
+
         $storeData['type_code'] = $type_code;
         $validate = Validator::make($storeData, [
             'type_name' => 'required'
@@ -66,6 +70,7 @@ class ItemTypesController extends Controller
     public function update(Request $request, $id)
     {
         $item_type = ItemType::find($id);
+        var_dump($item_type);
         if(is_null($item_type)){
             return response()->json([
                 'status' => 'failed',
@@ -73,9 +78,22 @@ class ItemTypesController extends Controller
                 'data' => null
             ], 404);
         }
+
+        $uuid = Str::uuid();
+        $parts = explode('-', $item_type->type_code);
+        if (count($parts) >= 4) {
+            $uniqueCode = $parts[3];
+        } else {
+            // Generate a new unique code
+            $uuid = Str::uuid();
+            $uniqueCode = substr($uuid, 0, 8);
+        } 
+        $type_code = 'Type-' . $uniqueCode;
+
         $updateData = $request->all();
+        $updateData['type_code'] = $type_code;
         $validate = Validator::make($updateData, [
-            'name' => 'required'
+            'type_name' => 'required'
         ]);
         if($validate->fails()){
             return response()->json([
@@ -84,7 +102,7 @@ class ItemTypesController extends Controller
                 'data' => $validate->errors()
             ], 400);
 
-            $item_type->name = $updateData['type_name'];
+            $item_type->type_name = $updateData['type_name'];
 
             if($item_type->save()){
                 return response()->json([
@@ -109,7 +127,7 @@ class ItemTypesController extends Controller
     public function destroy($id)
     {
         $item_type = ItemType::find($id);
-        $uuid_type = $item_type->uuid_type;
+        $type_code = $item_type->type_code;
 
         if(is_null($item_type)){
             return response([

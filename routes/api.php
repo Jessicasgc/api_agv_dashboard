@@ -31,8 +31,9 @@ Route::get('/station', [StationController::class, 'index']);
 Route::get('/station/{station_name}', [StationController::class, 'show']);
 Route::post('/station', [StationController::class, 'store']);
 Route::put('/station/{id}', [StationController::class, 'updateById']);
-Route::put('/station/{station_name}', [StationController::class, 'updateByName']);
-Route::delete('/station/{id}', [StationController::class, 'destroy']);
+Route::put('/station/name/{station_name}', [StationController::class, 'updateByName']);
+Route::delete('/station/name/{station_name}', [StationController::class, 'destroyByName']);
+Route::delete('/station/{id}', [StationController::class, 'destroyById']);
 //Route::get('/station', 'App\Http\Controllers\Api\StationController@index');
 
 //Route::post('/station', 'App\Http\Controllers\Api\StationController@store');

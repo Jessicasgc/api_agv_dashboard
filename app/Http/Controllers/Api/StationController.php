@@ -9,6 +9,7 @@ use App\Models\Station;
 use App\Models\ItemType;
 use Validator;
 use Haruncpi\LaravelIdGenerator\IdGenerator;
+use Illuminate\Support\Str;
 
 
 class StationController extends Controller
@@ -64,9 +65,15 @@ class StationController extends Controller
         $storeData = $request->all();
         $random_number = mt_rand(10, 99); 
         $id_type = $request->input('id_type');
-        
+    
+        // Debugging: Log the received id_type
+        \Log::info('Received id_type: ' . $id_type);
+
         $itemType = ItemType::find($id_type);
         
+        // Debugging: Log the retrieved ItemType
+        \Log::info('Retrieved ItemType: ' . json_encode($itemType));
+
         if (!$itemType) {
             return response()->json([
                 'success' => false,
@@ -75,11 +82,13 @@ class StationController extends Controller
             ], 404);
         }
         
+        $itemType = ItemType::find($id_type);
         $stationCount = Station::where('id_type', $id_type)->count();
         $station_number = $stationCount + 1;
-        $station_name = 'Station-' . $itemType->name . '-' . $station_number;
-        $storeData['station_code'] = $stationCount;
-        
+        $uuid = Str::uuid();
+        $uniqueCode = substr($uuid, 0, 8); 
+
+        $station_name = 'Station-' . $itemType->type_name . '-' . $station_number . '-' . $uniqueCode;
         $storeData['station_name'] = $station_name;
         
         $validate = Validator::make($storeData, [
@@ -89,13 +98,13 @@ class StationController extends Controller
             'stock' => 'required',
             'max_capacity' => 'required'
         ]);
-    
+
         if ($validate->fails()) {
             return response(['message' => $validate->errors()], 400);
         }
         
         $station = Station::create($storeData); 
-    
+
         if ($station) {
             return response([
                 'success' => true,
@@ -114,8 +123,8 @@ class StationController extends Controller
     public function updateByName(Request $request, $station_name)
     {
         $station = Station::where('station_name', $station_name)->first();
-        
-        if (!$station) {
+
+        if (is_null($station)) {
             return response()->json([
                 'status' => 'failed',
                 'message' => "Station $station_name not found",
@@ -124,7 +133,26 @@ class StationController extends Controller
         }
         
         $updateData = $request->all();
-        
+        $id_type = $updateData['id_type'];
+        $itemType = ItemType::find($id_type);
+        $stationCount = Station::where('id_type', $id_type)->count();
+        $station_number = $stationCount + 1;
+        $parts = explode('-', $station_name);
+        if (count($parts) >= 4) {
+            $uniqueCode = $parts[3];
+        } else {
+            // Generate a new unique code
+            $uuid = Str::uuid();
+            $uniqueCode = substr($uuid, 0, 8);
+        } 
+
+        $new_station_name = 'Station-' . $itemType->type_name . '-' . $station_number . '-' . $uniqueCode;
+
+        // Update the station_name
+        $station->station_name = $new_station_name;
+    
+        // Update other fields if needed
+        $station->fill($updateData);
         $validate = Validator::make($updateData, [
             'id_type' => 'required',
             'x' => 'required',
@@ -164,26 +192,37 @@ class StationController extends Controller
 
     public function updateById(Request $request, $id){
         $station = Station::find($id);
-        var_dump($station);
-        if (!$station) {
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'Station not found',
-                'data' => null
-            ], 404);
-        }
 
-        $item_type_name = $station->itemType->name;
-        $station_name = IdGenerator::generate(['table' => 'stations', 'field' => 'station_name', 'length' => 10, 'prefix' => 'Station-'. $item_type_name]);
-        $storeData['station_name'] = $station_name;
-        if(is_null($station)){
+        if (is_null($station)) {
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Station not found',
+                'message' => "Station Data with ID $id not found",
                 'data' => null
             ], 404);
         }
+        
         $updateData = $request->all();
+        $id_type = $updateData['id_type'];
+        $itemType = ItemType::find($id_type);
+        $stationCount = Station::where('id_type', $id_type)->count();
+        $station_number = $stationCount + 1;
+
+        $parts = explode('-', $station->station_name);
+        if (count($parts) >= 4) {
+            $uniqueCode = $parts[3];
+        } else {
+            // Generate a new unique code
+            $uuid = Str::uuid();
+            $uniqueCode = substr($uuid, 0, 8);
+        } 
+
+        $new_station_name = 'Station-' . $itemType->type_name . '-' . $station_number . '-' . $uniqueCode;
+
+        // Update the station_name
+        $station->station_name = $new_station_name;
+    
+        // Update other fields if needed
+        $station->fill($updateData);
         $validate = Validator::make($updateData, [
             'id_type' => 'required',
             'x' => 'required',
@@ -191,61 +230,80 @@ class StationController extends Controller
             'stock' => 'required',
             'max_capacity' => 'required'
         ]);
-        if($validate->fails()){
+        
+        if ($validate->fails()) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'Validation Error',
                 'data' => $validate->errors()
             ], 400);
-
-            $station->id_type = $updateData['type'];
-            $station->x = $updateData['x'];
-            $station->y = $updateData['y'];
-            $station->stock = $updateData['stock'];
-            $station->max_capacity = $updateData['max_capacity'];
-
-            if($station->save()){
-                return response()->json([
-                    'status' => 'success',
-                    'message' => 'Data $uuid_station updated successfully',
-                    'data' => $station
-                ], 200);
-            } else {
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Data $uuid_station failed to update',
-                    'data' => null
-                ], 400);
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Data $uuid_station failed to update',
-                    'data' => null
-                ], 500);
-            }
+        }
+        
+        $station->id_type = $updateData['id_type'];
+        $station->x = $updateData['x'];
+        $station->y = $updateData['y'];
+        $station->stock = $updateData['stock'];
+        $station->max_capacity = $updateData['max_capacity'];
+        
+        if ($station->save()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Station Data with ID $id updated successfully",
+                'data' => $station
+            ], 200);
+        } else {
+            return response()->json([
+                'status' => 'failed',
+                'message' => "Station Data with ID $id failed to update",
+                'data' => null
+            ], 500);
         }
     }
 
-    public function destroy($id)
+    public function destroyById($id)
     {
         $station = Station::find($id);
-        $uuid_station = $station->uuid_station;
 
         if(is_null($station)){
             return response([
-                'message' => '$uuid_station Not Found',
+                'message' => "Station Data with ID $id Not Found",
                 'data' => null
             ], 404);
         }
 
         if($station->delete()){
             return response([
-                'message' => 'Delete $uuid_station Success',
+                'message' => "Delete Station Data with ID $id Successfully",
                 'data' => $station
             ], 200);
         }
 
         return response([
-            'message' => 'Delete $uuid_station Failed',
+            'message' => "Delete Station Data with ID $id Failed",
+            'data' => $station
+        ], 400);
+    }
+
+    public function destroyByName($station_name)
+    {
+        $station = Station::where('station_name', $station_name)->first();
+
+        if(is_null($station)){
+            return response([
+                'message' => "$station_name Not Found",
+                'data' => null
+            ], 404);
+        }
+
+        if($station->delete()){
+            return response([
+                'message' => "Delete $station_name Success",
+                'data' => $station
+            ], 200);
+        }
+
+        return response([
+            'message' => "Delete $station_name Failed",
             'data' => $station
         ], 400);
     }

@@ -31,6 +31,6 @@ class Station extends Model
     }
     public function itemType()
     {
-        return $this->belongsTo(ItemType::class, 'id_type');
+        return $this->belongsTo(ItemType::class, 'id');
     }
 }
