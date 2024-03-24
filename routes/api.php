@@ -41,10 +41,12 @@ Route::delete('/station/{id}', [StationController::class, 'destroyById']);
 
 //Item Type
 Route::get('/itemtype', [ItemTypesController::class, 'index']);
-Route::get('/itemtype/{id}', [ItemTypesController::class, 'show']);
+Route::get('/itemtype/name/{type_name}', [ItemTypesController::class, 'show']);
 Route::post('/itemtype', [ItemTypesController::class, 'store']);
-Route::put('/itemtype/{id}', [ItemTypesController::class, 'update']);
-Route::delete('/itemtype/{id}', [ItemTypesController::class, 'destroy']);
+Route::put('/itemtype/name/{type_name}', [ItemTypesController::class, 'updateByName']);
+Route::put('/itemtype/{id}', [ItemTypesController::class, 'updateById']);
+Route::delete('/itemtype/{id}', [ItemTypesController::class, 'destroyById']);
+Route::delete('/itemtype/name/{type_name}', [ItemTypesController::class, 'destroyByName']);
 
 //Item
 Route::get('/item', [ItemsController::class, 'index']);

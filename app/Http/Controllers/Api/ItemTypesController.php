@@ -30,6 +30,34 @@ class ItemTypesController extends Controller
         ], 404);
     }
 
+    public function show($type_name)
+    {
+        
+        $item_type = ItemType::where('type_name', $type_name)->first();
+        if (is_null($item_type)) {
+            return response([
+                'success' => false,
+                'message' => "$type_name Not Found",
+                'data' => null
+            ], 404);
+        }
+       
+        if(!is_null($item_type)){
+            return response([
+                'success' => true,
+                'message' => "Retrieve Data $type_name Success",
+                'data' => $item_type
+            ], 200);
+        }
+
+        return response([
+            'success' => false,
+            'message' => "$type_name Not Found",
+            'data' => null
+        ], 404);
+    
+    }
+
     public function store(Request $request)
     {
         $storeData = $request->all();
@@ -67,10 +95,11 @@ class ItemTypesController extends Controller
             ], 500);
         }
     }
-    public function update(Request $request, $id)
+
+    public function updateById(Request $request, $id)
     {
         $item_type = ItemType::find($id);
-        var_dump($item_type);
+
         if(is_null($item_type)){
             return response()->json([
                 'status' => 'failed',
@@ -101,75 +130,121 @@ class ItemTypesController extends Controller
                 'message' => 'Validation Error',
                 'data' => $validate->errors()
             ], 400);
+        }
 
-            $item_type->type_name = $updateData['type_name'];
+        $item_type->type_name = $updateData['type_name'];
 
-            if($item_type->save()){
-                return response()->json([
-                    'status' => 'success',
-                    'message' => 'Data  updated successfully',
-                    'data' => $item_type
-                ], 200);
-            } else {
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Data failed to update',
-                    'data' => null
-                ], 400);
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Data failed to update',
-                    'data' => null
-                ], 500);
-            }
+        if($item_type->save()){
+            return response()->json([
+                'status' => 'success',
+                'message' => "Data $type_code updated successfully",
+                'data' => $item_type
+            ], 200);
+        } else {
+            return response()->json([
+                'status' => 'failed',
+                'message' => "Data $type_code failed to update",
+                'data' => null
+            ], 500);
         }
     }
-    public function destroy($id)
+
+    public function updateByName(Request $request, $type_name)
+    {
+        $item_type = ItemType::where('type_name', $type_name)->first();
+
+        if(is_null($item_type)){
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Data not found',
+                'data' => null
+            ], 404);
+        }
+
+        $uuid = Str::uuid();
+        $parts = explode('-', $item_type->type_code);
+        if (count($parts) >= 4) {
+            $uniqueCode = $parts[3];
+        } else {
+            // Generate a new unique code
+            $uuid = Str::uuid();
+            $uniqueCode = substr($uuid, 0, 8);
+        } 
+        $type_code = 'Type-' . $uniqueCode;
+
+        $updateData = $request->all();
+        $updateData['type_code'] = $type_code;
+        $validate = Validator::make($updateData, [
+            'type_name' => 'required'
+        ]);
+        if($validate->fails()){
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Validation Error',
+                'data' => $validate->errors()
+            ], 400);
+        }
+
+        $item_type->type_name = $updateData['type_name'];
+
+        if($item_type->save()){
+            return response()->json([
+                'status' => 'success',
+                'message' => "Data $type_code updated successfully",
+                'data' => $item_type
+            ], 200);
+        } else {
+            return response()->json([
+                'status' => 'failed',
+                'message' => "Data $type_code failed to update",
+                'data' => null
+            ], 500);
+        }
+    }
+    public function destroyById($id)
     {
         $item_type = ItemType::find($id);
-        $type_code = $item_type->type_code;
 
         if(is_null($item_type)){
             return response([
-                'message' => "$type_code Not Found",
+                'message' => "Item Type with ID $id Not Found",
                 'data' => null
             ], 404);
         }
 
         if($item_type->delete()){
             return response([
-                'message' => "Delete $type_code Success",
+                'message' => "Delete Item Type with ID $id Success",
                 'data' => $item_type
             ], 200);
         }
 
         return response([
-            'message' => "Delete $type_code Failed",
+            'message' => "Delete Item Type with ID $id Failed",
             'data' => $item_type
         ], 400);
     }
-    // public function destroy($id)
-    // {
-    //     $item_type = ItemType::find($id);
-    //     $uuid_type = $item_type->uuid_type;
+    public function destroyByName($type_name)
+    {
+        $item_type = ItemType::where('type_name', $type_name)->first();
 
-    //     if(is_null($item_type)){
-    //         return response([
-    //             'message' => '$uuid_type Not Found',
-    //             'data' => null
-    //         ], 404);
-    //     }
+        if(is_null($item_type)){
+            return response([
+                'message' => "$type_name Not Found",
+                'data' => null
+            ], 404);
+        }
 
-    //     if($item_type->delete()){
-    //         return response([
-    //             'message' => 'Delete $uuid_type Success',
-    //             'data' => $item_type
-    //         ], 200);
-    //     }
+        if($item_type->delete()){
+            return response([
+                'message' => "Delete $type_name Success",
+                'data' => $item_type
+            ], 200);
+        }
 
-    //     return response([
-    //         'message' => 'Delete $uuid_type Failed',
-    //         'data' => $item_type
-    //     ], 400);
-    // }
+        return response([
+            'message' => "Delete $type_name Failed",
+            'data' => $item_type
+        ], 400);
+    }
 }
