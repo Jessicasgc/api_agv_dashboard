@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class Item extends Model
 {
@@ -11,7 +12,6 @@ class Item extends Model
     protected $fillable = [
         'id',
         'id_type',
-        'id_station',
         'item_code',
         'item_name',
     ];

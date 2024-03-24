@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Models\Item;
 use Validator;
+use Illuminate\Support\Str;
 
 class ItemsController extends Controller
 {
@@ -28,21 +29,59 @@ class ItemsController extends Controller
         ], 404);
     }
 
-    public function show($id)
+    public function showById($id)
     {
         $item = Item::find($id); //mencari data kamar berdasarkan id
-
+        $item_name = $item->item_name;
         if(!is_null($item)){
             return response([
                 'success' => true,
-                'message' => 'Retrieve Data Item Success',
+                'message' => "Retrieve Data $item_name Success",
                 'data' => $item
             ], 200);
         }
 
         return response([
             'success' => false,
-            'message' => 'Item Not Found',
+            'message' => "$item_code Data with name $item_name Not Found",
+            'data' => null
+        ], 404);
+    }
+
+    public function showByName($item_name)
+    {
+        $item = Item::where('item_name', $item_name)->get(); //mencari data kamar berdasarkan id
+        
+        if(!is_null($item)){
+            return response([
+                'success' => true,
+                'message' => "Retrieve Data $item_name Success",
+                'data' => $item
+            ], 200);
+        }
+
+        return response([
+            'success' => false,
+            'message' => "$item_name Data Not Found",
+            'data' => null
+        ], 404);
+    }
+
+    public function showByCode($item_code)
+    {
+        $item = Item::where('item_code', $item_code)->get(); //mencari data kamar berdasarkan id
+        
+        if(!is_null($item)){
+            return response([
+                'success' => true,
+                'message' => "Retrieve Data $item_code Success",
+                'data' => $item
+            ], 200);
+        }
+
+        return response([
+            'success' => false,
+            'message' => "$item_code Data Not Found",
             'data' => null
         ], 404);
     }
@@ -50,14 +89,15 @@ class ItemsController extends Controller
     public function store(Request $request)
     {
         $storeData = $request->all();
-        $uuid_item = IdGenerator::generate(['table' => 'items', 'field' => 'uuid_item', 'length' => 10, 'prefix' => date('Item-')]);
-        $storeData['uuid_item'] = $uuid_item;
+        $uuid = Str::uuid();
+        $uniqueCode = substr($uuid, 0, 8); 
+        $item_code = 'Item-' . $uniqueCode;
+
+        $storeData['item_code'] = $item_code;
         
         $validate = Validator::make($storeData, [
-            'uuid_item' => 'required'|'regex:/^Item-\d{10}$/'|'unique:items',
             'id_type'=>'required',
-            'id_station'=>'required',
-            'name'=>'required',
+            'item_name'=>'required',
         ]);
        
 
@@ -65,44 +105,43 @@ class ItemsController extends Controller
             return response(['message' => $validate->errors()], 400);
             
         $item = Item::create($storeData); 
-        dd($item);
+        
         if ($item) {
             return response([
                 'success' => true,
-                'message' => 'Create Data {$uuid_item} Success',
+                'message' => "Create Data $item_code Success",
                 'data' => $item
             ], 200);
         } else {
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Data '.$uuid_item.' failed to create',
+                'message' => "Data $item_code failed to create",
                 'data' => null
             ], 400);
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Data $uuid_item failed to create',
+                'message' => "Data $item_code failed to create",
                 'data' => null
             ], 500);
         }
     }
 
-    public function update(Request $request, $id)
+    public function updateById(Request $request, $id)
     {
         $item = Item::find($id);
-        $uuid_item = $item->uuid_item;
-        
+        $item_name = $item->item_name;
+        var_dump($item_name);
         if(is_null($item)){
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Data {$uuid_item} not found',
+                'message' => "Item Data with $id not found",
                 'data' => null
             ], 404);
         }
         $updateData = $request->all();
         $validate = Validator::make($updateData, [
             'id_type'=>'required',
-            'id_station'=>'required',
-            'name'=>'required',
+            'item_name'=>'required',
         ]);
         if($validate->fails()){
             return response()->json([
@@ -112,51 +151,120 @@ class ItemsController extends Controller
             ], 400);
 
             $item->id_type = $updateData['id_type'];
-            $item->id_station = $updateData['id_station'];
-            $item->name = $updateData['name'];
+            $item->item_name = $updateData['item_name'];
 
             if($item->save()){
                 return response()->json([
                     'status' => 'success',
-                    'message' => 'Data $uuid_item updated successfully',
+                    'message' => "Item Data with ID $id updated successfully",
                     'data' => $item
                 ], 200);
             } else {
                 return response()->json([
                     'status' => 'failed',
-                    'message' => 'Data $uuid_item failed to update',
+                    'message' => "Item Data with ID $id failed to update",
                     'data' => null
                 ], 400);
                 return response()->json([
                     'status' => 'failed',
-                    'message' => 'Data $uuid_item failed to update',
+                    'message' => "Item Data with ID $id failed to update",
                     'data' => null
                 ], 500);
             }
         }
     }
 
-    public function destroy($id)
+    public function updateByName(Request $request, $item_name)
+    {
+        $item = Item::where('item_name', $item_name)->first(); 
+        
+        if(is_null($item)){
+            return response()->json([
+                'status' => 'failed',
+                'message' => "Item Data $item_name not found",
+                'data' => null
+            ], 404);
+        }
+        $updateData = $request->all();
+        $validate = Validator::make($updateData, [
+            'id_type'=>'required',
+            'item_name'=>'required',
+        ]);
+        if($validate->fails()){
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Validation Error',
+                'data' => $validate->errors()
+            ], 400);
+
+            $item->id_type = $updateData['id_type'];
+            $item->item_name = $updateData['item_name'];
+
+            if($item->save()){
+                return response()->json([
+                    'status' => 'success',
+                    'message' => "Item Data with ID $id updated successfully",
+                    'data' => $item
+                ], 200);
+            } else {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => "Item Data with ID $id failed to update",
+                    'data' => null
+                ], 400);
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => "Item Data with ID $id failed to update",
+                    'data' => null
+                ], 500);
+            }
+        }
+    }
+
+    public function destroyById($id)
     {
         $item = Item::find($id);
-        $uuid_item = $item->uuid_item;
 
         if(is_null($item)){
             return response([
-                'message' => '$uuid_item Not Found',
+                'message' => "Item data with ID $id Not Found",
                 'data' => null
             ], 404);
         }
 
         if($item->delete()){
             return response([
-                'message' => 'Delete $uuid_item Success',
+                'message' => "Delete Item data with ID $id Success",
                 'data' => $item
             ], 200);
         }
 
         return response([
-            'message' => 'Delete $uuid_item Failed',
+            'message' => "Delete Item data with ID $id Failed",
+            'data' => $item
+        ], 400);
+    }
+
+    public function destroyByCode($item_code)
+    {
+        $item = Item::where('item_code', $item_code)->first();
+
+        if(is_null($item)){
+            return response([
+                'message' => "$item_code Not Found",
+                'data' => null
+            ], 404);
+        }
+
+        if($item->delete()){
+            return response([
+                'message' => "Delete $item_code Success",
+                'data' => $item
+            ], 200);
+        }
+
+        return response([
+            'message' => "Delete $item_code Failed",
             'data' => $item
         ], 400);
     }

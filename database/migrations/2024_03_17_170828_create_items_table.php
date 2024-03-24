@@ -16,7 +16,6 @@ return new class extends Migration
         Schema::create('items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('id_type')->constrained('item_types');
-            $table->foreignId('id_station')->constrained('stations');
             $table->string('item_code');
             $table->string('item_name');
             $table->timestamps();

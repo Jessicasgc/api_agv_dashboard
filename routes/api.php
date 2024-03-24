@@ -50,10 +50,14 @@ Route::delete('/itemtype/name/{type_name}', [ItemTypesController::class, 'destro
 
 //Item
 Route::get('/item', [ItemsController::class, 'index']);
-Route::get('/item/{id}', [ItemsController::class, 'show']);
-Route::post('/item{id}', [ItemsController::class, 'store']);
-Route::put('/item/{id}', [ItemsController::class, 'update']);
-Route::delete('/item/{id}', [ItemsController::class, 'destroy']);
+Route::get('/item/{id}', [ItemsController::class, 'showById']);
+Route::get('/item/name/{item_name}', [ItemsController::class, 'showByName']);
+Route::get('/item/code/{item_code}', [ItemsController::class, 'showByCode']);
+Route::post('/item', [ItemsController::class, 'store']);
+Route::put('/item/{id}', [ItemsController::class, 'updateById']);
+Route::put('/item/name/{item_name}', [ItemsController::class, 'updateByName']);
+Route::delete('/item/{id}', [ItemsController::class, 'destroyById']);
+Route::delete('/item/{item_code}', [ItemsController::class, 'destroyByName']);
 
 //AGV
 Route::get('/agv', [AGVController::class, 'index']);

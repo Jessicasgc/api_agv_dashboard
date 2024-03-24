@@ -67,7 +67,7 @@ class ItemTypesController extends Controller
 
         $storeData['type_code'] = $type_code;
         $validate = Validator::make($storeData, [
-            'type_name' => 'required'
+            'type_name' => 'required|unique:item_types'
         ]);
        
 
@@ -122,7 +122,7 @@ class ItemTypesController extends Controller
         $updateData = $request->all();
         $updateData['type_code'] = $type_code;
         $validate = Validator::make($updateData, [
-            'type_name' => 'required'
+            'type_name' => 'required|unique:item_types'
         ]);
         if($validate->fails()){
             return response()->json([
