@@ -129,97 +129,90 @@ class ItemsController extends Controller
     public function updateById(Request $request, $id)
     {
         $item = Item::find($id);
-        $item_name = $item->item_name;
-        var_dump($item_name);
+
         if(is_null($item)){
             return response()->json([
                 'status' => 'failed',
-                'message' => "Item Data with $id not found",
+                'message' => "Item with ID $id not found",
                 'data' => null
             ], 404);
         }
+
         $updateData = $request->all();
         $validate = Validator::make($updateData, [
-            'id_type'=>'required',
-            'item_name'=>'required',
+            'id_type' => 'required',
+            'item_name' => 'required',
         ]);
+
         if($validate->fails()){
             return response()->json([
                 'status' => 'failed',
                 'message' => 'Validation Error',
                 'data' => $validate->errors()
             ], 400);
-
-            $item->id_type = $updateData['id_type'];
-            $item->item_name = $updateData['item_name'];
-
-            if($item->save()){
-                return response()->json([
-                    'status' => 'success',
-                    'message' => "Item Data with ID $id updated successfully",
-                    'data' => $item
-                ], 200);
-            } else {
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => "Item Data with ID $id failed to update",
-                    'data' => null
-                ], 400);
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => "Item Data with ID $id failed to update",
-                    'data' => null
-                ], 500);
-            }
         }
-    }
 
-    public function updateByName(Request $request, $item_name)
-    {
-        $item = Item::where('item_name', $item_name)->first(); 
-        
-        if(is_null($item)){
+        $item->id_type = $updateData['id_type'];
+        $item->item_name = $updateData['item_name'];
+
+        if($item->save()){
+            return response()->json([
+                'status' => 'success',
+                'message' => "Item with ID $id updated successfully",
+                'data' => $item
+            ], 200);
+        } else {
             return response()->json([
                 'status' => 'failed',
-                'message' => "Item Data $item_name not found",
+                'message' => "Failed to update item with ID $id",
                 'data' => null
-            ], 404);
-        }
-        $updateData = $request->all();
-        $validate = Validator::make($updateData, [
-            'id_type'=>'required',
-            'item_name'=>'required',
-        ]);
-        if($validate->fails()){
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'Validation Error',
-                'data' => $validate->errors()
-            ], 400);
-
-            $item->id_type = $updateData['id_type'];
-            $item->item_name = $updateData['item_name'];
-
-            if($item->save()){
-                return response()->json([
-                    'status' => 'success',
-                    'message' => "Item Data with ID $id updated successfully",
-                    'data' => $item
-                ], 200);
-            } else {
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => "Item Data with ID $id failed to update",
-                    'data' => null
-                ], 400);
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => "Item Data with ID $id failed to update",
-                    'data' => null
-                ], 500);
-            }
+            ], 500);
         }
     }
+
+public function updateByCode(Request $request, $item_code)
+{
+    $item = Item::where('item_code', $item_code)->first();
+
+    if(is_null($item)){
+        return response()->json([
+            'status' => 'failed',
+            'message' => "Item with code $item_code not found",
+            'data' => null
+        ], 404);
+    }
+
+    $updateData = $request->all();
+    $validate = Validator::make($updateData, [
+        'id_type' => 'required',
+        'item_name' => 'required',
+    ]);
+
+    if($validate->fails()){
+        return response()->json([
+            'status' => 'failed',
+            'message' => 'Validation Error',
+            'data' => $validate->errors()
+        ], 400);
+    }
+
+    $item->id_type = $updateData['id_type'];
+    $item->item_name = $updateData['item_name'];
+
+    if($item->save()){
+        return response()->json([
+            'status' => 'success',
+            'message' => "Item with code $item_code updated successfully",
+            'data' => $item
+        ], 200);
+    } else {
+        return response()->json([
+            'status' => 'failed',
+            'message' => "Failed to update item with code $item_code",
+            'data' => null
+        ], 500);
+    }
+}
 
     public function destroyById($id)
     {

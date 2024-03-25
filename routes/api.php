@@ -55,7 +55,7 @@ Route::get('/item/name/{item_name}', [ItemsController::class, 'showByName']);
 Route::get('/item/code/{item_code}', [ItemsController::class, 'showByCode']);
 Route::post('/item', [ItemsController::class, 'store']);
 Route::put('/item/{id}', [ItemsController::class, 'updateById']);
-Route::put('/item/name/{item_name}', [ItemsController::class, 'updateByName']);
+Route::put('/item/code/{item_code}', [ItemsController::class, 'updateByCode']);
 Route::delete('/item/{id}', [ItemsController::class, 'destroyById']);
 Route::delete('/item/{item_code}', [ItemsController::class, 'destroyByName']);
 
