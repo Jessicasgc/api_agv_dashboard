@@ -28,7 +28,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 //Station
 Route::get('/station', [StationController::class, 'index']);
-Route::get('/station/{station_name}', [StationController::class, 'show']);
+Route::get('/station/name/{station_name}', [StationController::class, 'show']);
 Route::post('/station', [StationController::class, 'store']);
 Route::put('/station/{id}', [StationController::class, 'updateById']);
 Route::put('/station/name/{station_name}', [StationController::class, 'updateByName']);
@@ -57,12 +57,12 @@ Route::post('/item', [ItemsController::class, 'store']);
 Route::put('/item/{id}', [ItemsController::class, 'updateById']);
 Route::put('/item/code/{item_code}', [ItemsController::class, 'updateByCode']);
 Route::delete('/item/{id}', [ItemsController::class, 'destroyById']);
-Route::delete('/item/{item_code}', [ItemsController::class, 'destroyByName']);
+Route::delete('/item/code/{item_code}', [ItemsController::class, 'destroyByName']);
 
 //AGV
 Route::get('/agv', [AGVController::class, 'index']);
 Route::get('/agv/{id}', [AGVController::class, 'show']);
-Route::post('/agv/{id}', [AGVController::class, 'store']);
+Route::post('/agv', [AGVController::class, 'store']);
 Route::put('/agv/{id}', [AGVController::class, 'update']);
 Route::delete('/agv/{id}', [AGVController::class, 'destroy']);
 

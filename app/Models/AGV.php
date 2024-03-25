@@ -14,7 +14,7 @@ class AGV extends Model
         'id',
         'agv_name',
         'agv_code',
-        'status',
+        'agv_status',
         'is_charging'
     ];
     public function getCreatedAtAttribute(){

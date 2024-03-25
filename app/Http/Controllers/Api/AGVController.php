@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Models\AGV;
 use Validator;
-use Haruncpi\LaravelIdGenerator\IdGenerator;
+use Illuminate\Support\Str;
 class AGVController extends Controller
 {
     public function index()
@@ -52,36 +52,40 @@ class AGVController extends Controller
     public function store(Request $request)
     {
         $storeData = $request->all();
-        $uuid_agv = IdGenerator::generate(['table' => 'agv', 'field' => 'uuid_agv', 'length' => 10, 'prefix' => date('AGV-')]);
-        $storeData['uuid_agv'] = $uuid_agv;
+        $uuid = Str::uuid();
+        $uniqueCode = substr($uuid, 0, 8); 
+        $agv_code = 'AGV-' . $uniqueCode;
+     
+
+        $storeData['agv_code'] = $agv_code;
         
         $validate = Validator::make($storeData, [
-            'uuid_agv' => 'required'|'regex:/^AGV-\d{10}$/'|'unique:agv',
-            'status' => 'required',
+            'agv_name' => 'required|unique:agv',
+            'agv_status' => 'required',
             'is_charging' => 'required',
         ]);
-       
+        $agv_name = $request->input('agv_name');
 
         if($validate->fails())
             return response(['message' => $validate->errors()], 400);
             
         $agv = AGV::create($storeData); 
-        dd($agv);
+        //dd($agv);
         if ($agv) {
             return response([
                 'success' => true,
-                'message' => 'Create Data {$uuid_agv} Task Success',
+                'message' => "Create Data $agv_name Task Success",
                 'data' => $agv
             ], 200);
         } else {
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Data '.$uuid_agv.' failed to create',
+                'message' => "Data $agv_name failed to create",
                 'data' => null
             ], 400);
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Data $uuid_agv failed to create',
+                'message' => "Data $agv_name failed to create",
                 'data' => null
             ], 500);
         }
