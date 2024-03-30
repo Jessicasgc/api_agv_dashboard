@@ -61,14 +61,22 @@ Route::delete('/item/code/{item_code}', [ItemsController::class, 'destroyByName'
 
 //AGV
 Route::get('/agv', [AGVController::class, 'index']);
-Route::get('/agv/{id}', [AGVController::class, 'show']);
+Route::get('/agv/{id}', [AGVController::class, 'showById']);
+Route::get('/agv/name/{agv_name}', [AGVController::class, 'showByName']);
 Route::post('/agv', [AGVController::class, 'store']);
-Route::put('/agv/{id}', [AGVController::class, 'update']);
-Route::delete('/agv/{id}', [AGVController::class, 'destroy']);
+Route::put('/agv/{id}', [AGVController::class, 'updateById']);
+Route::put('/agv/name/{agv_name}', [AGVController::class, 'updateByName']);
+Route::delete('/agv/{id}', [AGVController::class, 'destroyById']);
+Route::delete('/agv/name/{agv_name}', [AGVController::class, 'destroyByName']);
 
 //Task
 Route::get('/task', [TasksController::class, 'index']);
-Route::get('/task/{id}', [TasksController::class, 'show']);
-Route::post('/task/{id}', [TasksController::class, 'store']);
-Route::put('/task{id}', [TasksController::class, 'update']);
-Route::delete('/task/{id}', [TasksController::class, 'destroy']);
+Route::get('/task/{id}', [TasksController::class, 'showById']);
+Route::get('/task/name/{task_name}', [TasksController::class, 'showByName']);
+Route::get('/task/code/{task_code}', [TasksController::class, 'showByCode']);
+Route::post('/task', [TasksController::class, 'store']);
+Route::put('/task/{id}', [TasksController::class, 'updateById']);
+Route::put('/task/code/{task_code}', [TasksController::class, 'updateByCode']);
+Route::delete('/task/{id}', [TasksController::class, 'destroyById']);
+Route::delete('/task/name/{task_name}', [TasksController::class, 'destroyByName']);
+Route::delete('/task/code/{task_code}', [TasksController::class, 'destroyByCode']);

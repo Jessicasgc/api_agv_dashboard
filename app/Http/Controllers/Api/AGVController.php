@@ -28,27 +28,53 @@ class AGVController extends Controller
         ], 404);
     }
 
-    public function show($id)
+    public function showById($id)
     {
         $agv = AGV::find($id); 
-        $uuid_agv = $agv->uuid_agv;
 
         if(!is_null($agv)){
             return response([
                 'success' => true,
-                'message' => 'Retrieve Data $uuid_agv Success',
+                'message' => "Retrieve AGV Data with ID $id Success",
                 'data' => $agv
             ], 200);
         }
 
         return response([
             'success' => false,
-            'message' => '$uuid_agv Not Found',
+            'message' => "AGV Data with ID $id Not Found",
             'data' => null
         ], 404);
     
     }
 
+    public function showByName($agv_name)
+    {
+        
+        $agv = AGV::where('agv_name', $agv_name)->first();
+        if (is_null($agv)) {
+            return response([
+                'success' => false,
+                'message' => "$agv_name Not Found",
+                'data' => null
+            ], 404);
+        }
+       
+        if(!is_null($agv)){
+            return response([
+                'success' => true,
+                'message' => "Retrieve Data $agv_name Success",
+                'data' => $agv
+            ], 200);
+        }
+
+        return response([
+            'success' => false,
+            'message' => "$agv_name Not Found",
+            'data' => null
+        ], 404);
+    
+    }
     public function store(Request $request)
     {
         $storeData = $request->all();
@@ -56,7 +82,6 @@ class AGVController extends Controller
         $uniqueCode = substr($uuid, 0, 8); 
         $agv_code = 'AGV-' . $uniqueCode;
      
-
         $storeData['agv_code'] = $agv_code;
         
         $validate = Validator::make($storeData, [
@@ -90,22 +115,23 @@ class AGVController extends Controller
             ], 500);
         }
     }
-
-    public function update(Request $request, $id)
+    public function updateByName(Request $request, $agv_name)
     {
-        $agv = AGV::find($id);
-        $uuid_agv = $agv->uuid_agv;
-        
+        $agv = AGV::where('agv_name', $agv_name)->first();
+
         if(is_null($agv)){
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Data not found',
+                'message' => "AGV Data $agv_name not found",
                 'data' => null
             ], 404);
         }
+
         $updateData = $request->all();
+    
         $validate = Validator::make($updateData, [
-            'status' => 'required',
+            'agv_name' => 'required|unique:agv,agv_name,'.$agv->id,
+            'agv_status' => 'required',
             'is_charging' => 'required',
         ]);
         if($validate->fails()){
@@ -114,52 +140,116 @@ class AGVController extends Controller
                 'message' => 'Validation Error',
                 'data' => $validate->errors()
             ], 400);
+        }
 
-            $agv->status = $updateData['status'];
-            $agv->is_charging = $updateData['is_charging'];
+        $agv->agv_name = $updateData['agv_name'];
+        $agv->agv_status = $updateData['agv_status'];
+        $agv->is_charging = $updateData['is_charging'];
 
-            if($agv->save()){
-                return response()->json([
-                    'status' => 'success',
-                    'message' => 'Data $uuid_agv updated successfully',
-                    'data' => $agv
-                ], 200);
-            } else {
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Data $uuid_agv failed to update',
-                    'data' => null
-                ], 400);
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Data $uuid_agv failed to update',
-                    'data' => null
-                ], 500);
-            }
+        if($agv->save()){
+            return response()->json([
+                'status' => 'success',
+                'message' => "AGV Data with name $agv_name updated successfully",
+                'data' => $agv
+            ], 200);
+        } else {
+            return response()->json([
+                'status' => 'failed',
+                'message' => "AGV Data with name $agv_name failed to update",
+                'data' => null
+            ], 500);
         }
     }
 
-    public function destroy($id)
+    public function updateById(Request $request, $id)
     {
         $agv = AGV::find($id);
-        $uuid_agv = $agv->uuid_agv;
+        if(is_null($agv)){
+            return response()->json([
+                'status' => 'failed',
+                'message' => "Data with ID $id not found",
+                'data' => null
+            ], 404);
+        }
 
+        $updateData = $request->all();
+        
+        $validate = Validator::make($updateData, [
+            'agv_name' => 'required|unique:agv,agv_name,'.$id,
+            'agv_status' => 'required',
+            'is_charging' => 'required',
+        ]);
+        if($validate->fails()){
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Validation Error',
+                'data' => $validate->errors()
+            ], 400);
+        }
+
+        $agv->agv_name = $updateData['agv_name'];
+        $agv->agv_status = $updateData['agv_status'];
+        $agv->is_charging = $updateData['is_charging'];
+
+        if($agv->save()){
+            return response()->json([
+                'status' => 'success',
+                'message' => "AGV Data with ID $id updated successfully",
+                'data' => $agv
+            ], 200);
+        } else {
+            return response()->json([
+                'status' => 'failed',
+                'message' => "AGV Data with ID $id failed to update",
+                'data' => null
+            ], 500);
+        }
+    }
+
+    public function destroyById($id)
+    {
+        $agv = AGV::find($id);
+        $agv_name = $agv->agv_name;
         if(is_null($agv)){
             return response([
-                'message' => '$uuid_agv Not Found',
+                'message' => "$id Not Found",
                 'data' => null
             ], 404);
         }
 
         if($agv->delete()){
             return response([
-                'message' => 'Delete $uuid_agv Success',
+                'message' => "Delete $agv_name Success",
                 'data' => $agv
             ], 200);
         }
 
         return response([
-            'message' => 'Delete $uuid_agv Failed',
+            'message' => "Delete $agv_name Failed",
+            'data' => $agv
+        ], 400);
+    }
+
+    public function destroyByName($agv_name)
+    {
+        $agv = AGV::where('agv_name', $agv_name)->first();
+        
+        if(is_null($agv)){
+            return response([
+                'message' => "AGV Data with $agv_name Not Found",
+                'data' => null
+            ], 404);
+        }
+
+        if($agv->delete()){
+            return response([
+                'message' => "Delete $agv_name Success",
+                'data' => $agv
+            ], 200);
+        }
+
+        return response([
+            'message' => "Delete $agv_name Failed",
             'data' => $agv
         ], 400);
     }

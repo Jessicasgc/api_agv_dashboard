@@ -8,6 +8,10 @@ use Illuminate\Validation\Rule;
 use App\Models\Task;
 use Validator;
 use Haruncpi\LaravelIdGenerator\IdGenerator;
+use Illuminate\Support\Str;
+use App\Models\Item;
+use App\Models\Station;
+
 
 class TasksController extends Controller
 {
@@ -32,29 +36,48 @@ class TasksController extends Controller
     public function store(Request $request)
     {
         $storeData = $request->all();
-        $uuid_task = IdGenerator::generate(['table' => 'tasks', 'field' => 'uuid_task', 'length' => 10, 'prefix' => date('Task-')]);
-        $storeData['uuid_task'] = $uuid_task;
-        
+        $uuid = Str::uuid();
+        $uniqueCode = substr($uuid, 0, 8); 
+        $task_code = 'Task-' . $uniqueCode;
 
-        Validator::extend('one_nullable', function ($attribute, $value, $parameters, $validator) {
-            $otherAttribute = $parameters[0];
+        $storeData['task_code'] = $task_code;
         
-            $otherValue = $validator->getData()[$otherAttribute];
-        
-            return ($value !== null || $otherValue !== null) && ($value === null || $otherValue === null);
-        });
+        if (!empty($storeData['id_station_input']) && empty($storeData['id_station_output'])) {
+            // Generating task name for item entering station
+            $item = Item::find($storeData['id_item']);
+            $stationInput = Station::find($storeData['id_station_input']);
+            $task_name = "Memasukkan {$item->item_name} ke {$stationInput->station_name}";
+        } elseif (empty($storeData['id_station_input']) && !empty($storeData['id_station_output'])) {
+            // Generating task name for item exiting station
+            $item = Item::find($storeData['id_item']);
+            $stationOutput = Station::find($storeData['id_station_output']);
+            $task_name = "Mengeluarkan {$item->item_name} dari {$stationOutput->station_name}";
+        } elseif (!empty($storeData['id_station_input']) && !empty($storeData['id_station_output'])) {
+            // Generating task name for item transferring between stations
+            $item = Item::find($storeData['id_item']);
+            $stationInput = Station::find($storeData['id_station_input']);
+            $stationOutput = Station::find($storeData['id_station_output']);
+            $task_name = "Memindahkan {$item->item_name} dari {$stationOutput->station_name} ke {$stationInput->station_name}";
+        } else {
+            // If neither station is provided, task name cannot be generated
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Please provide either input or output station',
+                'data' => null
+            ], 400);
+        }
+
+        $storeData['task_name'] = $task_name;
 
         $validate = Validator::make($storeData, [
-            'uuid_task' => 'required'|'regex:/^Task-\d{10}$/'|'unique:tasks',
             'id_agv' => 'required',
-            'id_station_input' => 'sometimes|required|nullable|one_nullable:id_station_output',
-            'id_station_output' => 'sometimes|required|nullable|one_nullable:id_station_input',
+            'id_station_input',
+            'id_station_output',
             'id_item' => 'required',
             'task_status' => 'required',
             'start_time' => 'required',
             'end_time' => 'required',
         ]);
-       
 
         if($validate->fails())
             return response(['message' => $validate->errors()], 400);
@@ -64,48 +87,144 @@ class TasksController extends Controller
         if ($task) {
             return response([
                 'success' => true,
-                'message' => 'Create Data $uuid_task Task Success',
+                'message' => "Create Data $task_code Task Success",
                 'data' => $task
             ], 200);
         } else {
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Data $uuid_task failed to create',
+                'message' => "Data $task_code failed to create",
                 'data' => null
             ], 400);
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Data $uuid_task failed to create',
+                'message' => "Data $task_code failed to create",
                 'data' => null
             ], 500);
         }
     }
 
 
-    public function update(Request $request, $id)
+    public function updateById(Request $request, $id)
     {
         $task = Task::find($id);
-        $uuid_task = $task->uuid_task;
-        
+    
         if(is_null($task)){
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Data $uuid_task not found',
+                'message' => "Task Data with ID $id not found",
                 'data' => null
             ], 404);
         }
         $updateData = $request->all();
-        Validator::extend('one_nullable', function ($attribute, $value, $parameters, $validator) {
-            $otherAttribute = $parameters[0];
-        
-            $otherValue = $validator->getData()[$otherAttribute];
-        
-            return ($value !== null || $otherValue !== null) && ($value === null || $otherValue === null);
-        });
 
         $validate = Validator::make($updateData, [
-            'id_station_input' => 'sometimes|required|nullable|one_nullable:id_station_output',
-            'id_station_output' => 'sometimes|required|nullable|one_nullable:id_station_input',
+            'id_agv' => 'required',
+            'id_station_input',
+            'id_station_output',
+            'id_item' => 'required',
+            'task_name',
+            'task_status' => 'required',
+            'start_time' => 'required',
+            'end_time' => 'required',
+        ]);
+        if($validate->fails()){
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Validation Error',
+                'data' => $validate->errors()
+            ], 400);
+        }
+        $task->id_agv = $updateData['id_agv'];
+        $task->id_station_input = $updateData['id_station_input'];
+        $task->id_station_output = $updateData['id_station_output'];
+        $task->id_item = $updateData['id_item'];
+        $task->task_status = $updateData['task_status'];
+        $task->start_time = $updateData['start_time'];
+        $task->end_time = $updateData['end_time'];
+
+        // Generate task name based on the provided stations
+        if (!empty($updateData['id_station_input']) && empty($updateData['id_station_output'])) {
+            $item = Item::find($updateData['id_item']);
+            $stationInput = Station::find($updateData['id_station_input']);
+            if (!$stationInput) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Invalid input station ID provided',
+                    'data' => null
+                ], 400);
+            }
+            $new_task_name = "Memasukkan item {$item->item_name} ke {$stationInput->station_name}";
+        } elseif (empty($updateData['id_station_input']) && !empty($updateData['id_station_output'])) {
+            $item = Item::find($updateData['id_item']);
+            $stationOutput = Station::find($updateData['id_station_output']);
+            if (!$stationOutput) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Invalid output station ID provided',
+                    'data' => null
+                ], 400);
+            }
+            $new_task_name = "Mengeluarkan item {$item->item_name} dari {$stationOutput->station_name}";
+        } elseif (!empty($updateData['id_station_input']) && !empty($updateData['id_station_output'])) {
+            $item = Item::find($updateData['id_item']);
+            $stationInput = Station::find($updateData['id_station_input']);
+            $stationOutput = Station::find($updateData['id_station_output']);
+            if (!$stationInput || !$stationOutput) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Invalid input or output station ID provided',
+                    'data' => null
+                ], 400);
+            }
+            $new_task_name = "Memindahkan item {$item->item_name} dari {$stationOutput->station_name} ke {$stationInput->station_name}";
+        } else {
+            // If neither station is provided, task name cannot be generated
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Please provide either input or output station',
+                'data' => null
+            ], 400);
+        }
+        $task->task_name = $new_task_name;
+        
+        if($task->save()){
+            return response()->json([
+                'status' => 'success',
+                'message' => "Task Data with ID $id updated successfully",
+                'data' => $task
+            ], 200);
+        } else {
+            return response()->json([
+                'status' => 'failed',
+                'message' => "Task Data with ID $id failed to update",
+                'data' => null
+            ], 400);
+            return response()->json([
+                'status' => 'failed',
+                'message' => "Task Data with ID $id failed to update",
+                'data' => null
+            ], 500);
+        }
+    }
+
+    public function updateByCode(Request $request, $task_code)
+    {
+        $task = Task::where('task_code', $task_code)->first();
+    
+        if(is_null($task)){
+            return response()->json([
+                'status' => 'failed',
+                'message' => "Task Data with name $task_name not found",
+                'data' => null
+            ], 404);
+        }
+        $updateData = $request->all();
+
+        $validate = Validator::make($updateData, [
+            'id_agv' => 'required',
+            'id_station_input',
+            'id_station_output',
             'id_item' => 'required',
             'task_status' => 'required',
             'start_time' => 'required',
@@ -117,7 +236,8 @@ class TasksController extends Controller
                 'message' => 'Validation Error',
                 'data' => $validate->errors()
             ], 400);
-            
+        }
+        $task->id_agv = $updateData['id_agv'];
         $task->id_station_input = $updateData['id_station_input'];
         $task->id_station_output = $updateData['id_station_output'];
         $task->id_item = $updateData['id_item'];
@@ -125,43 +245,145 @@ class TasksController extends Controller
         $task->start_time = $updateData['start_time'];
         $task->end_time = $updateData['end_time'];
 
+        // Generate task name based on the provided stations
+        if (!empty($updateData['id_station_input']) && empty($updateData['id_station_output'])) {
+            $item = Item::find($updateData['id_item']);
+            $stationInput = Station::find($updateData['id_station_input']);
+            if (!$stationInput) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Invalid input station ID provided',
+                    'data' => null
+                ], 400);
+            }
+            $new_task_name = "Memasukkan item {$item->item_name} ke {$stationInput->station_name}";
+        } elseif (empty($updateData['id_station_input']) && !empty($updateData['id_station_output'])) {
+            $item = Item::find($updateData['id_item']);
+            $stationOutput = Station::find($updateData['id_station_output']);
+            if (!$stationOutput) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Invalid output station ID provided',
+                    'data' => null
+                ], 400);
+            }
+            $new_task_name = "Mengeluarkan item {$item->item_name} dari {$stationOutput->station_name}";
+        } elseif (!empty($updateData['id_station_input']) && !empty($updateData['id_station_output'])) {
+            $item = Item::find($updateData['id_item']);
+            $stationInput = Station::find($updateData['id_station_input']);
+            $stationOutput = Station::find($updateData['id_station_output']);
+            if (!$stationInput || !$stationOutput) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Invalid input or output station ID provided',
+                    'data' => null
+                ], 400);
+            }
+            $new_task_name = "Memindahkan item {$item->item_name} dari {$stationOutput->station_name} ke {$stationInput->station_name}";
+        } else {
+            // If neither station is provided, task name cannot be generated
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Please provide either input or output station',
+                'data' => null
+            ], 400);
+        }
+        $task->task_name = $new_task_name;
+        
         if($task->save()){
             return response()->json([
                 'status' => 'success',
-                'message' => 'Data $uuid_task updated successfully',
+                'message' => "Task Data with code $task_code updated successfully",
                 'data' => $task
             ], 200);
         } else {
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Data $uuid_task failed to update',
+                'message' => "Task Data with code $task_code failed to update",
                 'data' => null
             ], 400);
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Data $uuid_task failed to update',
+                'message' => "Task Data with code $task_code failed to update",
                 'data' => null
             ], 500);
         }
-        }
     }
+    
  
-    public function show($id)
+    public function showById($id)
     {
         $task = Task::find($id); 
-        $uuid_task = $task->uuid_task;
+        $task_code = $task->task_code;
 
         if(!is_null($task)){
             return response([
                 'success' => true,
-                'message' => 'Retrieve Data $uuid_task Success',
+                'message' => "Retrieve Task Data with ID $id Success",
                 'data' => $task
             ], 200);
         }
 
         return response([
             'success' => false,
-            'message' => '$uuid_task Not Found',
+            'message' => "Task Data with ID $id Not Found",
+            'data' => null
+        ], 404);
+    
+    }
+
+    public function showByName($task_name)
+    {
+        
+        $task = Task::where('task_name', $task_name)->first();
+
+        if (is_null($task)) {
+            return response([
+                'success' => false,
+                'message' => "Data Task $task_name Not Found",
+                'data' => null
+            ], 404);
+        }
+       
+        if(!is_null($task)){
+            return response([
+                'success' => true,
+                'message' => "Retrieve Task Data $task_name Success",
+                'data' => $task
+            ], 200);
+        }
+
+        return response([
+            'success' => false,
+            'message' => "Task Data $task_name Not Found",
+            'data' => null
+        ], 404);
+    
+    }
+
+    public function showByCode($task_code)
+    {
+        $task = Task::where('task_code', $task_code)->first();
+
+        if (is_null($task)) {
+            return response([
+                'success' => false,
+                'message' => "Task Data with Code $task_code Not Found",
+                'data' => null
+            ], 404);
+        }
+       
+        if(!is_null($task)){
+            return response([
+                'success' => true,
+                'message' => "Retrieve Data with Code $task_code Success",
+                'data' => $task
+            ], 200);
+        }
+
+        return response([
+            'success' => false,
+            'message' => "Task Data with Code $task_code Not Found",
             'data' => null
         ], 404);
     
@@ -173,27 +395,74 @@ class TasksController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function destroy($id)
+    public function destroyById($id)
     {
         $task = Task::find($id);
-        $uuid_task = $task->uuid_task;
 
         if(is_null($task)){
             return response([
-                'message' => '$uuid_task Not Found',
+                'message' => "Task with ID $id Not Found",
                 'data' => null
             ], 404);
         }
 
         if($task->delete()){
             return response([
-                'message' => 'Delete $uuid_task Success',
+                'message' => "Delete Task with ID $id Success",
                 'data' => $task
             ], 200);
         }
 
         return response([
-            'message' => 'Delete $uuid_task Failed',
+            'message' => "Delete Task with ID $id Failed",
+            'data' => $task
+        ], 400);
+    }
+
+    public function destroyByName($task_name)
+    {
+        $task = Task::where('task_name', $task_name)->first();
+
+        if(is_null($task)){
+            return response([
+                'message' => "Task Data with Name $task_name Not Found",
+                'data' => null
+            ], 404);
+        }
+
+        if($task->delete()){
+            return response([
+                'message' => "Delete Task Data with Name $task_name Success",
+                'data' => $task
+            ], 200);
+        }
+
+        return response([
+            'message' => "Delete $type_name Failed",
+            'data' => $item_type
+        ], 400);
+    }
+
+    public function destroyByCode($task_code)
+    {
+        $task = Task::where('task_code', $task_code)->first();
+
+        if(is_null($task)){
+            return response([
+                'message' => "Task Data with Code $task_code Not Found",
+                'data' => null
+            ], 404);
+        }
+
+        if($task->delete()){
+            return response([
+                'message' => "Delete Task Data with Code $task_code Success",
+                'data' => $task
+            ], 200);
+        }
+
+        return response([
+            'message' => "Delete $task_code Failed",
             'data' => $task
         ], 400);
     }

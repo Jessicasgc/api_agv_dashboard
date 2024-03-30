@@ -15,12 +15,12 @@ return new class extends Migration
     {
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('id_station_input')->constrained('stations')->cascadeOnUpdate()->cascadeOnDelete()->nullable()->default(null);
-            $table->foreignId('id_station_output')->constrained('stations')->cascadeOnUpdate()->cascadeOnDelete()->nullable()->default(null);
+            $table->foreignId('id_station_input')->nullable()->constrained('stations')->cascadeOnUpdate()->cascadeOnDelete()->default(null);
+            $table->foreignId('id_station_output')->nullable()->constrained('stations')->cascadeOnUpdate()->cascadeOnDelete()->default(null);
             $table->string('task_code');
             $table->string('task_name');
             $table->foreignId('id_agv')->constrained('agv');
-            $table->foreignId('id_stock')->constrained('items');
+            $table->foreignId('id_item')->constrained('items');
             $table->string('task_status');
             $table->time('start_time');
             $table->time('end_time');

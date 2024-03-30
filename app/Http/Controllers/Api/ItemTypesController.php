@@ -99,7 +99,6 @@ class ItemTypesController extends Controller
     public function updateById(Request $request, $id)
     {
         $item_type = ItemType::find($id);
-
         if(is_null($item_type)){
             return response()->json([
                 'status' => 'failed',
@@ -108,21 +107,10 @@ class ItemTypesController extends Controller
             ], 404);
         }
 
-        $uuid = Str::uuid();
-        $parts = explode('-', $item_type->type_code);
-        if (count($parts) >= 4) {
-            $uniqueCode = $parts[3];
-        } else {
-            // Generate a new unique code
-            $uuid = Str::uuid();
-            $uniqueCode = substr($uuid, 0, 8);
-        } 
-        $type_code = 'Type-' . $uniqueCode;
-
         $updateData = $request->all();
-        $updateData['type_code'] = $type_code;
+        
         $validate = Validator::make($updateData, [
-            'type_name' => 'required|unique:item_types'
+            'type_name' => 'required'
         ]);
         if($validate->fails()){
             return response()->json([
@@ -137,13 +125,13 @@ class ItemTypesController extends Controller
         if($item_type->save()){
             return response()->json([
                 'status' => 'success',
-                'message' => "Data $type_code updated successfully",
+                'message' => "Type Data with ID $id updated successfully",
                 'data' => $item_type
             ], 200);
         } else {
             return response()->json([
                 'status' => 'failed',
-                'message' => "Data $type_code failed to update",
+                'message' => "Type Data $id failed to update",
                 'data' => null
             ], 500);
         }
@@ -161,19 +149,8 @@ class ItemTypesController extends Controller
             ], 404);
         }
 
-        $uuid = Str::uuid();
-        $parts = explode('-', $item_type->type_code);
-        if (count($parts) >= 4) {
-            $uniqueCode = $parts[3];
-        } else {
-            // Generate a new unique code
-            $uuid = Str::uuid();
-            $uniqueCode = substr($uuid, 0, 8);
-        } 
-        $type_code = 'Type-' . $uniqueCode;
-
         $updateData = $request->all();
-        $updateData['type_code'] = $type_code;
+    
         $validate = Validator::make($updateData, [
             'type_name' => 'required'
         ]);
@@ -190,13 +167,13 @@ class ItemTypesController extends Controller
         if($item_type->save()){
             return response()->json([
                 'status' => 'success',
-                'message' => "Data $type_code updated successfully",
+                'message' => "Type Data with name $type_name updated successfully",
                 'data' => $item_type
             ], 200);
         } else {
             return response()->json([
                 'status' => 'failed',
-                'message' => "Data $type_code failed to update",
+                'message' => "Type Data with name $type_name failed to update",
                 'data' => null
             ], 500);
         }
