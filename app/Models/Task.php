@@ -32,4 +32,21 @@ class Task extends Model
             return Carbon::parse($this->attributes['update_at'])->format('Y-m-d H:i:s');
         }
     }
+
+    public function agv()
+    {
+        return $this->belongsTo(AGV::class, 'id_agv');
+    }
+
+    public function station()
+    {
+        return $this->belongsTo(Station::class, 'id_station');
+    }
+    
+    public function item()
+    {
+        return $this->belongsTo(Item::class, 'id_item');
+    }
+
+
 }

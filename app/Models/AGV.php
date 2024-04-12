@@ -27,4 +27,8 @@ class AGV extends Model
             return Carbon::parse($this->attributes['update_at'])->format('Y-m-d H:i:s');
         }
     }
+    public function tasks()
+    {
+        return $this->hasMany(Task::class, 'id_agv');
+    }
 }

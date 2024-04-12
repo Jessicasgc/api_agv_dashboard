@@ -59,8 +59,9 @@ class StationController extends Controller
         ], 404);
     
     }
+    
 
-    public function store(Request $request)
+    public function storee(Request $request)
     {
         $storeData = $request->all();
         $random_number = mt_rand(10, 99); 
@@ -90,12 +91,11 @@ class StationController extends Controller
 
         $station_name = 'Station-' . $itemType->type_name . '-' . $station_number . '-' . $uniqueCode;
         $storeData['station_name'] = $station_name;
-        
+        $storeData['stock'] = 0;
         $validate = Validator::make($storeData, [
             'id_type' => 'required',
             'x' => 'required',
             'y' => 'required',
-            'stock' => 'required',
             'max_capacity' => 'required'
         ]);
 
@@ -119,6 +119,66 @@ class StationController extends Controller
             ], 400);
         }
     }
+
+    // public function store(Request $request)
+    // {
+    //     $storeData = $request->all();
+    //     $random_number = mt_rand(10, 99); 
+    //     $id_type = $request->input('id_type');
+    
+    //     // Debugging: Log the received id_type
+    //     \Log::info('Received id_type: ' . $id_type);
+
+    //     $itemType = ItemType::find($id_type);
+        
+    //     // Debugging: Log the retrieved ItemType
+    //     \Log::info('Retrieved ItemType: ' . json_encode($itemType));
+
+    //     if (!$itemType) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Item type not found',
+    //             'data' => null
+    //         ], 404);
+    //     }
+        
+    //     $itemType = ItemType::find($id_type);
+    //     $stationCount = Station::where('id_type', $id_type)->count();
+    //     $station_number = $stationCount + 1;
+    //     $uuid = Str::uuid();
+    //     $uniqueCode = substr($uuid, 0, 8); 
+
+    //     $station_name = 'Station-' . $itemType->type_name . '-' . $station_number . '-' . $uniqueCode;
+    //     $storeData['station_name'] = $station_name;
+        
+    //     $validate = Validator::make($storeData, [
+    //         'id_type' => 'required',
+    //         'x' => 'required',
+    //         'y' => 'required',
+    //         'stock' => 'required',
+    //         'max_capacity' => 'required'
+    //     ]);
+
+    //     if ($validate->fails()) {
+    //         return response(['message' => $validate->errors()], 400);
+    //     }
+        
+    //     $station = Station::create($storeData); 
+
+    //     if ($station) {
+    //         return response([
+    //             'success' => true,
+    //             'message' => "Create Data $station_name Success",
+    //             'data' => $station
+    //         ], 200);
+    //     } else {
+    //         return response()->json([
+    //             'status' => 'failed',
+    //             'message' => "Data $station_name failed to create",
+    //             'data' => null
+    //         ], 400);
+    //     }
+    // }
 
     public function updateByName(Request $request, $station_name)
     {

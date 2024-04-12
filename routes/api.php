@@ -29,7 +29,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 //Station
 Route::get('/station', [StationController::class, 'index']);
 Route::get('/station/name/{station_name}', [StationController::class, 'show']);
-Route::post('/station', [StationController::class, 'store']);
+Route::post('/station', [StationController::class, 'storee']);
 Route::put('/station/{id}', [StationController::class, 'updateById']);
 Route::put('/station/name/{station_name}', [StationController::class, 'updateByName']);
 Route::delete('/station/name/{station_name}', [StationController::class, 'destroyByName']);
@@ -72,6 +72,7 @@ Route::delete('/agv/name/{agv_name}', [AGVController::class, 'destroyByName']);
 //Task
 Route::get('/task', [TasksController::class, 'index']);
 Route::get('/task/{id}', [TasksController::class, 'showById']);
+Route::get('/task/agv/{id_agv}', [TasksController::class, 'showByIdAGV']);
 Route::get('/task/name/{task_name}', [TasksController::class, 'showByName']);
 Route::get('/task/code/{task_code}', [TasksController::class, 'showByCode']);
 Route::post('/task', [TasksController::class, 'store']);
