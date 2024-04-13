@@ -463,9 +463,112 @@ class TasksController extends Controller
     
     }
 
+    public function showWaitingTasks()
+    {
+        $task = Task::where('task_status', 'waiting')->get();
+
+        if(!is_null($task)){
+            return response([
+                'success' => true,
+                'message' => "Retrieve Task Data with waiting task status success",
+                'data' => $task
+            ], 200);
+        }
+
+        return response([
+            'success' => false,
+            'message' => "Task Data with waiting task status Not Found",
+            'data' => null
+        ], 404);
+    
+    }
+
+    public function showDoneTasks()
+    {
+        $task = Task::where('task_status', 'done')->get();
+
+        if(!is_null($task)){
+            return response([
+                'success' => true,
+                'message' => "Retrieve Task Data with waiting task status success",
+                'data' => $task
+            ], 200);
+        }
+
+        return response([
+            'success' => false,
+            'message' => "Task Data with waiting task status Not Found",
+            'data' => null
+        ], 404);
+    
+    }
+
     public function showByIdAGV($id_agv)
     {
         $task = Task::where('id_agv', $id_agv)->get();
+        if(!is_null($task)){
+            return response([
+                'success' => true,
+                'message' => "Retrieve Task Data with ID $id_agv Success",
+                'data' => $task
+            ], 200);
+        }
+
+        return response([
+            'success' => false,
+            'message' => "Task Data with ID $id_agv Not Found or doesn't have id_agv",
+            'data' => null
+        ], 404);
+    }
+
+    public function showProcessingByIdAGV($id_agv)
+    {
+        $task = Task::where('id_agv', $id_agv)
+        ->where('task_status', 'processing')
+        ->get();
+
+        if(!is_null($task)){
+            return response([
+                'success' => true,
+                'message' => "Retrieve Task Data with ID $id_agv Success",
+                'data' => $task
+            ], 200);
+        }
+
+        return response([
+            'success' => false,
+            'message' => "Task Data with ID $id_agv Not Found or doesn't have id_agv",
+            'data' => null
+        ], 404);
+    }
+
+    public function showAllocatedByIdAGV($id_agv)
+    {
+        $task = Task::where('id_agv', $id_agv)
+        ->where('task_status', 'allocated')
+        ->get();
+        
+        if(!is_null($task)){
+            return response([
+                'success' => true,
+                'message' => "Retrieve Task Data with ID $id_agv Success",
+                'data' => $task
+            ], 200);
+        }
+
+        return response([
+            'success' => false,
+            'message' => "Task Data with ID $id_agv Not Found or doesn't have id_agv",
+            'data' => null
+        ], 404);
+    }
+
+    public function showDoneByIdAGV($id_agv)
+    {
+        $task = Task::where('id_agv', $id_agv)
+        ->where('task_status', 'done')
+        ->get();
+        
         if(!is_null($task)){
             return response([
                 'success' => true,
