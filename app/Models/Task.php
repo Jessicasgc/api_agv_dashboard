@@ -12,8 +12,8 @@ class Task extends Model
     protected $fillable = [
         'id',
         'id_agv',
-        'id_station_input',
-        'id_station_output',
+        'id_start_station',
+        'id_destination_station',
         'id_item',
         'task_code',
         'task_name',
@@ -48,5 +48,13 @@ class Task extends Model
         return $this->belongsTo(Item::class, 'id_item');
     }
 
+    public function startStation()
+    {
+        return $this->belongsTo(Station::class, 'id_start_station');
+    }
 
+    public function destinationStation()
+    {
+        return $this->belongsTo(Station::class, 'id_destination_station');
+    }
 }

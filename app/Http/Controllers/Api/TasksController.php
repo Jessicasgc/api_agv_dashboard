@@ -13,7 +13,9 @@ use App\Models\Item;
 use App\Models\Station;
 use App\Models\AGV;
 use Carbon\Carbon;
-
+use Ratchet\Client\Connector as WebSocketConnector;
+use React\EventLoop\Factory as EventLoopFactory;
+use React\Socket\Connector as SocketConnector;
 
 class TasksController extends Controller
 {
@@ -50,6 +52,7 @@ class TasksController extends Controller
 
     public function store(Request $request)
     {
+        
         $storeData = $request->all();
         $uuid = Str::uuid();
         $uniqueCode = substr($uuid, 0, 8); 
@@ -58,10 +61,52 @@ class TasksController extends Controller
         $storeData['task_code'] = $task_code;
 
         $allAGVs = AGV::all();
+        $allStation = Station::all();
+        $allTask = Task::all();
+        //$countFunction = Jarak^2 + (250/agv.power)^2 +(2jtask/5)^2 + (stock/2)^2
+        // if(agv1allocatedtask dan agv2allocatedtask<5){
+          if($allTask->id_agv!=null)
+            {
+                $agv1 = $allTask->id_agv;
+                $agv2 = $allTask->id_agv;
+                $jarak = sqrt(pow($allStation->x - $allStation->x, 2) + pow($allStation->y - $allStation->y, 2));
+                $power = 250/$allAGVs->power;
+                //$jtask = $allAGVs->taskswhere task status allocated->count();
+                $stock = $allStation->stock;
+                $countFunction = sqrt(pow($jarak, 2) + pow($power, 2) + pow($jtask, 2) + pow($stock, 2));
+            
+        // Find the task by ID
+        $task = Task::with(['startStation', 'destinationStation'])->find($id);
+        $jsonData = json_encode($storeData);
+        // WebSocket server URL
+        $webSocketServerUrl = 'ws://localhost:80/dashboard';
+        // Create an event loop
+        $loop = EventLoopFactory::create();
 
+        // Create a WebSocket connector
+        $connector = new WebSocketConnector($loop, new SocketConnector($loop, [
+            'timeout' => 30,
+        ]));
+
+        // Connect to the WebSocket server and send data
+        $connector($webSocketServerUrl)->then(function($connection) use ($jsonData) {
+            // Send JSON data to the WebSocket server
+            $connection->send($jsonData);
+            // Close the connection
+            $connection->close();
+        }, function($e) {
+            echo "Could not connect: {$e->getMessage()}\n";
+        });
+
+        // Run the event loop
+        $loop->run();
+
+        return response()->json(['status' => 'success', 'message' => 'Data sent to WebSocket server']);
+        }
+   
         // Mendapatkan AGV yang belum mencapai batas maksimum tugas
         $availableAGVs = collect([]);
-        
+    
         foreach ($allAGVs as $agv) {
             $agvTasksCounts = Task::where('id_agv', $agv->id)
                                   ->whereNotNull('id_agv')
@@ -73,6 +118,8 @@ class TasksController extends Controller
             }
         }
         
+        //Task Allocation
+
         // Memilih AGV secara acak dari AGV yang tersedia
         $availableAGV = $availableAGVs->isEmpty() ? null : $availableAGVs->random();
         
@@ -101,37 +148,37 @@ class TasksController extends Controller
         }
         
 
-        // Set start time and end time based on task status
-        if($storeData['task_status'] == "waiting" || $storeData['task_status'] == "allocated") {
-            $storeData['start_time'] = null;
-            $storeData['end_time'] = null;
-        } else if ($storeData['task_status'] == "processing") {
-            $storeData['start_time'] = Carbon::now();
-        } else if ($storeData['task_status'] == "done") {
-            $storeData['end_time'] = Carbon::now();
-        }
+        // // Set start time and end time based on task status
+        // if($storeData['task_status'] == "waiting" || $storeData['task_status'] == "allocated") {
+        //     $storeData['start_time'] = null;
+        //     $storeData['end_time'] = null;
+        // } else if ($storeData['task_status'] == "processing") {
+        //     $storeData['start_time'] = Carbon::now();
+        // } else if ($storeData['task_status'] == "done") {
+        //     $storeData['end_time'] = Carbon::now();
+        // }
 
-        if (!empty($storeData['id_station_input']) && empty($storeData['id_station_output'])) {
+        if (!empty($storeData['id_destination_station']) && empty($storeData['id_start_station'])) {
             // Generating task name for item entering station
             $item = Item::find($storeData['id_item']);
-            $stationInput = Station::find($storeData['id_station_input']);
-            $task_name = "Put in {$item->item_name} to {$stationInput->station_name}";
-        } elseif (empty($storeData['id_station_input']) && !empty($storeData['id_station_output'])) {
+            $destinationStation = Station::find($storeData['id_destination_station']);
+            $task_name = "Put in {$item->item_code} to {$destinationStation->station_name}";
+        } elseif (empty($storeData['id_destination_station']) && !empty($storeData['id_start_station'])) {
             // Generating task name for item exiting station
             $item = Item::find($storeData['id_item']);
-            $stationOutput = Station::find($storeData['id_station_output']);
-            $task_name = "Take out {$item->item_name} from {$stationOutput->station_name}";
-        } elseif (!empty($storeData['id_station_input']) && !empty($storeData['id_station_output'])) {
+            $startStation = Station::find($storeData['id_start_station']);
+            $task_name = "Take out {$item->item_code} from {$startStation->station_name}";
+        } elseif (!empty($storeData['id_start_station']) && !empty($storeData['id_start_station'])) {
             // Generating task name for item transferring between stations
             $item = Item::find($storeData['id_item']);
-            $stationInput = Station::find($storeData['id_station_input']);
-            $stationOutput = Station::find($storeData['id_station_output']);
-            $task_name = "Move the {$item->item_name} from {$stationOutput->station_name} to {$stationInput->station_name}";
+            $destinationStation = Station::find($storeData['id_destination_station']);
+            $startStation = Station::find($storeData['id_start_station']);
+            $task_name = "Move the {$item->item_code} from {$startStation->station_name} to {$destinationStation->station_name}";
         } else {
             // If neither station is provided, task name cannot be generated
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Please provide either input or output station',
+                'message' => 'Please provide destination station',
                 'data' => null
             ], 400);
         }
@@ -140,8 +187,8 @@ class TasksController extends Controller
 
         $validate = Validator::make($storeData, [
             'id_agv',
-            'id_station_input',
-            'id_station_output',
+            'id_destination_station',
+            'id_start_station',
             'id_item' => 'required',
             'task_status' => 'required',
         ]);
@@ -171,6 +218,132 @@ class TasksController extends Controller
         }
     }
 
+    // public function store(Request $request)
+    // {
+        
+    //     $storeData = $request->all();
+    //     $uuid = Str::uuid();
+    //     $uniqueCode = substr($uuid, 0, 8); 
+    //     $task_code = 'Task-' . $uniqueCode;
+
+    //     $storeData['task_code'] = $task_code;
+
+    //     $allAGVs = AGV::all();
+
+    //     // Mendapatkan AGV yang belum mencapai batas maksimum tugas
+    //     $availableAGVs = collect([]);
+        
+    //     foreach ($allAGVs as $agv) {
+    //         $agvTasksCounts = Task::where('id_agv', $agv->id)
+    //                               ->whereNotNull('id_agv')
+    //                               ->whereIn('task_status', ['processing', 'allocated', 'done'])
+    //                               ->count();
+            
+    //         if ($agvTasksCounts < 5) { // Cek apakah AGV masih bisa menampung tugas dengan status allocated
+    //             $availableAGVs->push($agv);
+    //         }
+    //     }
+        
+    //     //Task Allocation
+
+    //     // Memilih AGV secara acak dari AGV yang tersedia
+    //     $availableAGV = $availableAGVs->isEmpty() ? null : $availableAGVs->random();
+        
+    //     if ($availableAGV) {
+    //         // Menghitung jumlah tugas yang sudah dialokasikan untuk AGV yang dipilih
+    //         $agvTasksCounts = Task::where('id_agv', $availableAGV->id)
+    //                               ->whereNotNull('id_agv')
+    //                               ->whereIn('task_status', ['processing', 'allocated', 'done'])
+    //                               ->count();
+    //         var_dump($agvTasksCounts);
+    //         if ($agvTasksCounts == 0) {
+    //             // Jika belum ada tugas yang terkait dengan AGV tersebut,
+    //             // status tugas diatur menjadi "processing" dan id_agv diisi dengan ID AGV
+    //             $storeData['task_status'] = 'processing';
+    //             $storeData['id_agv'] = $availableAGV->id;
+    //         } else if ($agvTasksCounts > 0 && $agvTasksCounts <= 4) {
+    //             // Jika jumlah tugas untuk AGV tersebut belum mencapai maksimum,
+    //             // tugas akan dialokasikan ke AGV tersebut
+    //             $storeData['task_status'] = 'allocated';
+    //             $storeData['id_agv'] = $availableAGV->id;
+    //         }
+    //     } else {
+    //         // Jika tidak ada AGV yang tersedia, status tugas diatur menjadi "waiting"
+    //         $storeData['task_status'] = 'waiting';
+    //         $storeData['id_agv'] = null; // Set AGV ID to null
+    //     }
+        
+
+    //     // Set start time and end time based on task status
+    //     if($storeData['task_status'] == "waiting" || $storeData['task_status'] == "allocated") {
+    //         $storeData['start_time'] = null;
+    //         $storeData['end_time'] = null;
+    //     } else if ($storeData['task_status'] == "processing") {
+    //         $storeData['start_time'] = Carbon::now();
+    //     } else if ($storeData['task_status'] == "done") {
+    //         $storeData['end_time'] = Carbon::now();
+    //     }
+
+    //     if (!empty($storeData['id_destination_station']) && empty($storeData['id_start_station'])) {
+    //         // Generating task name for item entering station
+    //         $item = Item::find($storeData['id_item']);
+    //         $destinationStation = Station::find($storeData['id_destination_station']);
+    //         $task_name = "Put in {$item->item_code} to {$destinationStation->station_name}";
+    //     } elseif (empty($storeData['id_destination_station']) && !empty($storeData['id_start_station'])) {
+    //         // Generating task name for item exiting station
+    //         $item = Item::find($storeData['id_item']);
+    //         $startStation = Station::find($storeData['id_start_station']);
+    //         $task_name = "Take out {$item->item_code} from {$startStation->station_name}";
+    //     } elseif (!empty($storeData['id_start_station']) && !empty($storeData['id_start_station'])) {
+    //         // Generating task name for item transferring between stations
+    //         $item = Item::find($storeData['id_item']);
+    //         $destinationStation = Station::find($storeData['id_destination_station']);
+    //         $startStation = Station::find($storeData['id_start_station']);
+    //         $task_name = "Move the {$item->item_code} from {$startStation->station_name} to {$destinationStation->station_name}";
+    //     } else {
+    //         // If neither station is provided, task name cannot be generated
+    //         return response()->json([
+    //             'status' => 'failed',
+    //             'message' => 'Please provide destination station',
+    //             'data' => null
+    //         ], 400);
+    //     }
+
+    //     $storeData['task_name'] = $task_name;
+
+    //     $validate = Validator::make($storeData, [
+    //         'id_agv',
+    //         'id_destination_station',
+    //         'id_start_station',
+    //         'id_item' => 'required',
+    //         'task_status' => 'required',
+    //     ]);
+
+    //     if($validate->fails())
+    //         return response(['message' => $validate->errors()], 400);
+            
+    //     $task = Task::create($storeData); 
+        
+    //     if ($task) {
+    //         return response([
+    //             'success' => true,
+    //             'message' => "Create Data $task_code Task Success",
+    //             'data' => $task
+    //         ], 200);
+    //     } else {
+    //         return response()->json([
+    //             'status' => 'failed',
+    //             'message' => "Data $task_code failed to create",
+    //             'data' => null
+    //         ], 400);
+    //         return response()->json([
+    //             'status' => 'failed',
+    //             'message' => "Data $task_code failed to create",
+    //             'data' => null
+    //         ], 500);
+    //     }
+    // }
+
 
     public function updateById(Request $request, $id)
     {
@@ -186,8 +359,8 @@ class TasksController extends Controller
         $updateData = $request->all();
 
         $validate = Validator::make($updateData, [
-            'id_station_input',
-            'id_station_output',
+            'id_destination_station',
+            'id_start_station',
             'id_item' => 'required',
             //'task_status' => 'required',
         ]);
@@ -246,8 +419,8 @@ class TasksController extends Controller
     //     $updateData['end_time'] = Carbon::now();
     // }
     //     $task->id_agv = ($updateData['task_status'] == 'waiting') ? null : $updateData['id_agv'];
-    //     $task->id_station_input = $updateData['id_station_input'];
-    //     $task->id_station_output = $updateData['id_station_output'];
+    //     $task->id_destination_station = $updateData['id_destination_station'];
+    //     $task->id_start_station = $updateData['id_start_station'];
     //     $task->id_item = $updateData['id_item'];
     //     $task->task_status = $updateData['task_status'];
        
@@ -263,40 +436,40 @@ class TasksController extends Controller
        
 
         // Generate task name based on the provided stations
-        if (!empty($updateData['id_station_input']) && empty($updateData['id_station_output'])) {
+        if (empty($updateData['id_start_station'])) {
             $item = Item::find($updateData['id_item']);
-            $stationInput = Station::find($updateData['id_station_input']);
-            if (!$stationInput) {
+            $destinationStation = Station::find($updateData['id_destination_station']);
+            if (!$destinationStation) {
                 return response()->json([
                     'status' => 'failed',
                     'message' => 'Invalid input station ID provided',
                     'data' => null
                 ], 400);
             }
-            $new_task_name = "Put in item {$item->item_name} to {$stationInput->station_name}";
-        } elseif (empty($updateData['id_station_input']) && !empty($updateData['id_station_output'])) {
+            $new_task_name = "Put in item {$item->item_code} to {$destinationStation->station_name}";
+        } elseif ($updateData['id_destination_station'] === 3) {
             $item = Item::find($updateData['id_item']);
-            $stationOutput = Station::find($updateData['id_station_output']);
-            if (!$stationOutput) {
+            $startStation = Station::find($updateData['id_start_station']);
+            if (!$startStation) {
                 return response()->json([
                     'status' => 'failed',
                     'message' => 'Invalid output station ID provided',
                     'data' => null
                 ], 400);
             }
-            $new_task_name = "Take out item {$item->item_name} from {$stationOutput->station_name}";
-        } elseif (!empty($updateData['id_station_input']) && !empty($updateData['id_station_output'])) {
+            $new_task_name = "Take out item {$item->item_code} from {$startStation->station_name}";
+        } elseif (!empty($updateData['id_start_station'])) {
             $item = Item::find($updateData['id_item']);
-            $stationInput = Station::find($updateData['id_station_input']);
-            $stationOutput = Station::find($updateData['id_station_output']);
-            if (!$stationInput || !$stationOutput) {
+            $destinationStation = Station::find($updateData['id_destination_station']);
+            $startStation = Station::find($updateData['id_start_station']);
+            if (!$destinationStation || !$startStation) {
                 return response()->json([
                     'status' => 'failed',
                     'message' => 'Invalid input or output station ID provided',
                     'data' => null
                 ], 400);
             }
-            $new_task_name = "Move item {$item->item_name} from {$stationOutput->station_name} to {$stationInput->station_name}";
+            $new_task_name = "Move item {$item->item_code} from {$startStation->station_name} to {$destinationStation->station_name}";
         } else {
             // If neither station is provided, task name cannot be generated
             return response()->json([
@@ -353,8 +526,8 @@ class TasksController extends Controller
 
         $validate = Validator::make($updateData, [
             'id_agv' => 'required',
-            'id_station_input',
-            'id_station_output',
+            'id_destination_station',
+            'id_start_station',
             'id_item' => 'required',
             'task_status' => 'required',
         ]);
@@ -366,8 +539,8 @@ class TasksController extends Controller
             ], 400);
         }
         $task->id_agv = $updateData['id_agv'];
-        $task->id_station_input = $updateData['id_station_input'];
-        $task->id_station_output = $updateData['id_station_output'];
+        $task->id_destination_station = $updateData['id_destination_station'];
+        $task->id_start_station = $updateData['id_start_station'];
         $task->id_item = $updateData['id_item'];
         $task->task_status = $updateData['task_status'];
         $task->task_status = $updateData['task_status'];
@@ -378,40 +551,40 @@ class TasksController extends Controller
         }
         //$task->fill($updateData)->save();
         // Generate task name based on the provided stations
-        if (!empty($updateData['id_station_input']) && empty($updateData['id_station_output'])) {
+        if (!empty($updateData['id_destination_station']) && empty($updateData['id_start_station'])) {
             $item = Item::find($updateData['id_item']);
-            $stationInput = Station::find($updateData['id_station_input']);
-            if (!$stationInput) {
+            $destinationStation = Station::find($updateData['id_destination_station']);
+            if (!$destinationStation) {
                 return response()->json([
                     'status' => 'failed',
                     'message' => 'Invalid input station ID provided',
                     'data' => null
                 ], 400);
             }
-            $new_task_name = "Put in item {$item->item_name} to {$stationInput->station_name}";
-        } elseif (empty($updateData['id_station_input']) && !empty($updateData['id_station_output'])) {
+            $new_task_name = "Put in item {$item->item_code} to {$destinationStation->station_name}";
+        } elseif (empty($updateData['id_destination_station']) && !empty($updateData['id_start_station'])) {
             $item = Item::find($updateData['id_item']);
-            $stationOutput = Station::find($updateData['id_station_output']);
-            if (!$stationOutput) {
+            $startStation = Station::find($updateData['id_start_station']);
+            if (!$startStation) {
                 return response()->json([
                     'status' => 'failed',
                     'message' => 'Invalid output station ID provided',
                     'data' => null
                 ], 400);
             }
-            $new_task_name = "Take out item {$item->item_name} from {$stationOutput->station_name}";
-        } elseif (!empty($updateData['id_station_input']) && !empty($updateData['id_station_output'])) {
+            $new_task_name = "Take out item {$item->item_code} from {$startStation->station_name}";
+        } elseif (!empty($updateData['id_destination_station']) && !empty($updateData['id_start_station'])) {
             $item = Item::find($updateData['id_item']);
-            $stationInput = Station::find($updateData['id_station_input']);
-            $stationOutput = Station::find($updateData['id_station_output']);
-            if (!$stationInput || !$stationOutput) {
+            $destinationStation = Station::find($updateData['id_destination_station']);
+            $startStation = Station::find($updateData['id_start_station']);
+            if (!$destinationStation || !$startStation) {
                 return response()->json([
                     'status' => 'failed',
                     'message' => 'Invalid input or output station ID provided',
                     'data' => null
                 ], 400);
             }
-            $new_task_name = "Move item {$item->item_name} from {$stationOutput->station_name} to {$stationInput->station_name}";
+            $new_task_name = "Move item {$item->item_code} from {$startStation->station_name} to {$destinationStation->station_name}";
         } else {
             // If neither station is provided, task name cannot be generated
             return response()->json([

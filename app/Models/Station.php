@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use App\Events\WebsocketEvent;
 
 class Station extends Model
 {
@@ -32,5 +33,13 @@ class Station extends Model
     public function itemType()
     {
         return $this->belongsTo(ItemType::class, 'id');
+    }
+    protected static function booted()
+    {
+        static::updated(function ($station) {
+            if ($station->isDirty(['x', 'y'])) {
+                event(new WebsocketEvent($station));
+            }
+        });
     }
 }

@@ -15,8 +15,19 @@ class AGV extends Model
         'agv_name',
         'agv_code',
         'agv_status',
-        'is_charging'
+        // 'is_charging',
+        'position',
+        // 'container',
+        // 'collision',
+        'power',
+        'speed',
+        // 'orientation',
+        // 'acceleration',
+        // 'localMap',
+     
+
     ];
+
     public function getCreatedAtAttribute(){
         if(!is_null($this->attributes['created_at'])){
             return Carbon::parse($this->attributes['created_at'])->format('Y-m-d H:i:s');

@@ -11,6 +11,10 @@ use Illuminate\Support\Str;
 
 class ItemsController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('log.action')->only(['store', 'updateById', 'destroyById']);
+    }
     public function index()
     {
         $items = Item::all();
@@ -91,16 +95,16 @@ class ItemsController extends Controller
         $storeData = $request->all();
         $uuid = Str::uuid();
         $uniqueCode = substr($uuid, 0, 8); 
-        $item_code = 'Item-' . $uniqueCode;
-
-        $storeData['item_code'] = $item_code;
-        
+       
         $validate = Validator::make($storeData, [
             'id_type'=>'required',
             'item_name'=>'required',
         ]);
        
+        $item_code =  $storeData['item_name'] . '-' . $uniqueCode;
 
+        $storeData['item_code'] = $item_code;
+        
         if($validate->fails())
             return response(['message' => $validate->errors()], 400);
             

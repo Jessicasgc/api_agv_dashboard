@@ -15,8 +15,8 @@ return new class extends Migration
     {
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('id_station_input')->nullable()->constrained('stations')->default(null);
-            $table->foreignId('id_station_output')->nullable()->constrained('stations')->default(null);
+            $table->foreignId('id_start_station')->nullable()->constrained('stations')->default(null);
+            $table->foreignId('id_destination_station');
             $table->string('task_code');
             $table->string('task_name');
             $table->foreignId('id_agv')->nullable()->constrained('agv');

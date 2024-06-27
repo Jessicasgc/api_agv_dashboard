@@ -38,7 +38,7 @@ class StationController extends Controller
         $station = Station::where('station_name', $station_name)->first();
         if (is_null($station)) {
             return response([
-                'success' => false,
+                'success' => falseid_type,
                 'message' => "$station_name Not Found",
                 'data' => null
             ], 404);

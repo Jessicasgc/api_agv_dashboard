@@ -12,6 +12,7 @@ class Item extends Model
     protected $fillable = [
         'id',
         'id_type',
+        'id_station',
         'item_code',
         'item_name',
     ];
