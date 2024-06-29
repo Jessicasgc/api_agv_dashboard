@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Models\ActionLog;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 
 class LogAction
@@ -35,14 +36,21 @@ class LogAction
                 $action = 'delete';
             }
 
-            $modelInstance = $request->route()->parameter($request->route()->parameterNames()[0] ?? '');
+            // $modelInstance = $request->route()->parameter($request->route()->parameterNames()[0] ?? '');
             
             // Ensure we have a valid model instance and retrieve table name
-            if ($modelInstance && method_exists($modelInstance, 'getTable')) {
-                $table = $modelInstance->getTable();
-            } else {
-                $table = 'unknown'; // Set a default table name or handle the case where model or table name cannot be determined
-            }
+            // if ($modelInstance && method_exists($modelInstance, 'getTable')) {
+            //     $table = $modelInstance->getTable();
+            // } 
+            $routeUri = $request->route()->uri();
+
+            // Determine table name from route parameters
+            $table= $this->getTableNameFromRoute($routeUri);
+
+    
+            // Extract parameters
+            // $parameters = $route->parameters();
+    
             $id = $request->route()->parameter('id');
             Log::info("Action: $action, Table: $table, ID: $id");
             ActionLog::create([
@@ -58,5 +66,16 @@ class LogAction
 
         return $response;
     }
-    
+    protected function getTableNameFromRoute($routeUri)
+    {
+        // Example logic to determine table name based on route URI
+        if (strpos($routeUri, '/item')) {
+            return 'items';
+        }
+
+        // Add more conditions for other endpoints if needed
+
+        // If no match found, return empty string or handle accordingly
+        return '';
+    }
 }

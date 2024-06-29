@@ -8,12 +8,12 @@ use Illuminate\Validation\Rule;
 use App\Models\Item;
 use Validator;
 use Illuminate\Support\Str;
-
+use App\Models\ActionLog;
 class ItemsController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('log.action')->only(['store', 'updateById', 'destroyById']);
+        $this->middleware('log.action:item')->only(['store', 'updateById', 'destroyById']);
     }
     public function index()
     {

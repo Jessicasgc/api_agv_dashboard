@@ -10,7 +10,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\ValidationException;
-
+use Illuminate\Validation\Rule;
 class AuthController extends Controller
 {
     public function getAllUser()
@@ -88,10 +88,13 @@ class AuthController extends Controller
         $updateData = $request->all();
         $validate = Validator::make($updateData, [
             'name' => 'required|max:60',
-            'email' => 'required|email:rfc,dns|unique:users',
+            'email' => [
+                'required',
+                'email:rfc,dns',
+                Rule::unique('users')->ignore($id),
+            ],
             'role' => 'required',
-            'password' => 'required',
-            'is_active' => 'required'
+            // 'password' => 'required',
         ]);
 
         if($validate->fails()){
@@ -105,13 +108,13 @@ class AuthController extends Controller
         $user->name = $updateData['name'];
         $user->email = $updateData['email'];
         $user->role = $updateData['role'];
-        $user->password = Hash::make($updateData['password']);
+        // $user->password = Hash::make($updateData['password']);
 
-        if($item->save()){
+        if($user->save()){
             return response()->json([
                 'status' => 'success',
                 'message' => "Item with ID $id updated successfully",
-                'data' => $item
+                'data' => $user
             ], 200);
         } else {
             return response()->json([
@@ -124,22 +127,50 @@ class AuthController extends Controller
 
     public function changeIsActive(Request $request, $id)
     {
-        // Validate request data
-        $request->validate([
-            'is_active' => 'required|boolean'
-        ]);
+        // // Validate request data
+        // $request->validate([
+        //     'is_active' => 'required|boolean'
+        // ]);
 
         // Find user by ID
-        $user = User::findOrFail($id);
-        
-        // Update user status
-        $user->is_active = $request->input('is_active');
-        $user->save();
+        $user = User::find($id);
+        if(is_null($user)){
+            return response()->json([
+                'status' => 'failed',
+                'message' => "Item with ID $id not found",
+                'data' => null
+            ], 404);
+        }
+        $updateData = $request->all();
+        $validate = Validator::make($updateData, [
+            'is_active' => 'required|boolean',
+        ]);
 
-        return response()->json([
-            'status' => 'success', 
-            'message' => 'User status updated successfully'
-        ], 200);
+        if($validate->fails()){
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Validation Error',
+                'data' => $validate->errors()
+            ], 400);
+        }
+
+        $user->is_active = $request->input('is_active');
+
+        // Update user status
+        // $user->is_active = $request->input('is_active');
+        if($user->save()){
+            return response()->json([
+                'status' => 'success', 
+                'message' => 'User status updated successfully'
+            ], 200);
+        } else {
+            return response()->json([
+                'status' => 'failed',
+                'message' => "Failed to update item with ID $id",
+            ], 500);
+        }
+
+       
     
     }
 

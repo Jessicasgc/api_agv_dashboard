@@ -29,7 +29,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::resource('items', ItemController::class)->middleware('log.action');
+
 // Route::middleware('auth:sanctum')->get('/auth-check', [AuthController::class, 'checkAuth']);
 Route::group(['middleware' => 'auth:api'], function(){
     Route::get('/auth-check', [AuthController::class, 'authCheck']);
@@ -67,15 +67,17 @@ Route::group(['middleware' => 'auth:api'], function(){
     Route::delete('/itemtype/name/{type_name}', [ItemTypesController::class, 'destroyByName']);
 
     //Item
-    Route::get('/item', [ItemsController::class, 'index']);
-    Route::get('/item/{id}', [ItemsController::class, 'showById']);
-    Route::get('/item/name/{item_name}', [ItemsController::class, 'showByName']);
-    Route::get('/item/code/{item_code}', [ItemsController::class, 'showByCode']);
-    Route::post('/item', [ItemsController::class, 'store']);
-    Route::put('/item/{id}', [ItemsController::class, 'updateById']);
-    Route::put('/item/code/{item_code}', [ItemsController::class, 'updateByCode']);
-    Route::delete('/item/{id}', [ItemsController::class, 'destroyById']);
-    Route::delete('/item/code/{item_code}', [ItemsController::class, 'destroyByName']);
+    Route::middleware('log.action:item')->group(function () {
+        Route::get('/item', [ItemsController::class, 'index']);
+        Route::get('/item/{id}', [ItemsController::class, 'showById']);
+        Route::get('/item/name/{item_name}', [ItemsController::class, 'showByName']);
+        Route::get('/item/code/{item_code}', [ItemsController::class, 'showByCode']);
+        Route::post('/item', [ItemsController::class, 'store']);
+        Route::put('/item/{id}', [ItemsController::class, 'updateById']);
+        Route::put('/item/code/{item_code}', [ItemsController::class, 'updateByCode']);
+        Route::delete('/item/{id}', [ItemsController::class, 'destroyById']);
+        Route::delete('/item/code/{item_code}', [ItemsController::class, 'destroyByName']);
+    });
 
     //AGV
     Route::get('/agv', [AGVController::class, 'index']);
