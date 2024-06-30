@@ -37,16 +37,11 @@ Route::group(['middleware' => 'auth:api'], function(){
     Route::put('/changePs', [AuthController::class, 'changePassword']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    
-
-
     //User
     Route::get('/user', [AuthController::class, 'getAllUser']);
     Route::get('/user/{id}', [AuthController::class, 'getUserById']);
     Route::put('/user/{id}', [AuthController::class, 'updateUser']);
-
-    Route::patch('/user/{id}/isActive', [AuthController::class, 'changeIsActive']);
-
+    Route::put('/user/{id}/isActive', [AuthController::class, 'changeIsActive']);
 
     //Station
     Route::get('/station', [StationController::class, 'index']);

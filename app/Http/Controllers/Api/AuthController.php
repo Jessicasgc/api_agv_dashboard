@@ -15,8 +15,11 @@ class AuthController extends Controller
 {
     public function getAllUser()
     {
-        $users = User::all();
+        // $users = User::all();
+        $authUserId = Auth::id();
 
+        // Retrieve all users except the authenticated user
+        $users = User::where('id', '!=', $authUserId)->get();
         if(count($users) > 0){
             return response()->json([
                 'status' => 'success',
@@ -142,6 +145,7 @@ class AuthController extends Controller
             ], 404);
         }
         $updateData = $request->all();
+        $updateData['is_active'] = filter_var($updateData['is_active'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
         $validate = Validator::make($updateData, [
             'is_active' => 'required|boolean',
         ]);
@@ -154,14 +158,15 @@ class AuthController extends Controller
             ], 400);
         }
 
-        $user->is_active = $request->input('is_active');
+        $user->is_active = $updateData['is_active'];
 
         // Update user status
         // $user->is_active = $request->input('is_active');
         if($user->save()){
             return response()->json([
                 'status' => 'success', 
-                'message' => 'User status updated successfully'
+                'message' => 'User status updated successfully',
+                'is_active' => $user->is_active
             ], 200);
         } else {
             return response()->json([
@@ -244,15 +249,22 @@ class AuthController extends Controller
         }
 
         $credentials = $request->only('email', 'password');
-
+        
         if (!Auth::attempt($credentials)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Invalid credentials'
             ], 401);
         }
-
         $user = Auth::user();
+        if (!$user->is_active) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'User is inactive'
+            ], 403); // 403 Forbidden status code
+        }
+    
+        
         $token = $user->createToken('authToken')->accessToken;
 
         return response()->json([
