@@ -10,6 +10,8 @@ use React\Socket\Connector as ReactConnector;
 use App\Services\WebsocketClient;
 // use WebSocket\Client as WebSocketClient;
  use App\Models\AGV;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class FetchAGVData extends Command
 {
@@ -17,26 +19,18 @@ class FetchAGVData extends Command
     protected $description = 'Fetch AGV data from WebSocket service and store it in the database';
     protected $webSocketService;
 
-    public function __construct(
-        //WebsocketClient $webSocketService
-        )
+    public function __construct()
     {
         parent::__construct();
-        // $this->webSocketService = $webSocketService;
     }
-
-    // public function handle()
-    // {
-    //     $this->info('Starting WebSocket client...');
-    //     $this->webSocketService->receiveData();
-    // }
 
     public function handle()
     {
         $loop = Factory::create();
         $connector = new Connector($loop, new ReactConnector($loop));
-
-        $connector('ws://localhost:80/dashboard')
+        $uuid = Str::uuid();
+        $uniqueCode = substr($uuid, 0, 8); 
+        $connector('ws://localhost:80/backend')
             ->then(function(WebSocket $conn) use ($loop) {
                 $conn->on('message', function($msg) use ($conn) {
                     $this->info("Received: {$msg}");
@@ -44,16 +38,28 @@ class FetchAGVData extends Command
 
                     if (isset($data['type']) && $data['type'] === 'update' && isset($data['data'])) {
                         foreach ($data['data'] as $agvData) {
+                            $agv = AGV::firstOrNew(['id' => $agvData['id']]);
+
+                            // Generate a unique code if the record is new
+                            if (!$agv->exists) {
+                                $uuid = Str::uuid();
+                                $uniqueCode = substr($uuid, 0, 8);
+                                $agv->agv_code = 'AGV' . $uniqueCode;
+                            }
                             AGV::updateOrCreate(
+                                
+
                                 ['id' => $agvData['id']], // Unique identifier
                                 [
                                     'agv_name' => 'AGV '.$agvData['id'],
+                                    
                                     'agv_status' => $agvData["isOnline"] ? 'online' : 'offline',
                                     'position' => \DB::raw("POINT({$agvData['position']['x']}, {$agvData['position']['y']})"),
                                     'power' => $agvData['power'],
                                     'speed' => $agvData['velocity']
                                 ]
                             );
+                           
                         }
                     }
                 });

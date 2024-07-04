@@ -12,6 +12,10 @@ use Illuminate\Support\Str;
 
 class ItemTypesController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('log.action')->only(['store', 'updateById', 'destroyById']);
+    }
     public function index()
     {
         $itemtypes = ItemType::all();
@@ -184,6 +188,7 @@ class ItemTypesController extends Controller
 
         if(is_null($item_type)){
             return response([
+                'status' => 'failed',
                 'message' => "Item Type with ID $id Not Found",
                 'data' => null
             ], 404);
@@ -191,12 +196,14 @@ class ItemTypesController extends Controller
 
         if($item_type->delete()){
             return response([
+                'status' => 'success',
                 'message' => "Delete Item Type with ID $id Success",
                 'data' => $item_type
             ], 200);
         }
 
         return response([
+            'status' => 'failed',
             'message' => "Delete Item Type with ID $id Failed",
             'data' => $item_type
         ], 400);

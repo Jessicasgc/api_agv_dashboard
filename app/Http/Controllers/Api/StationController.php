@@ -13,7 +13,11 @@ use Illuminate\Support\Str;
 
 
 class StationController extends Controller
-{
+{  
+    public function __construct()
+    {
+        $this->middleware('log.action')->only(['storee', 'updateById', 'destroyById']);
+    }
     public function index()
     {
         $stations = Station::all();
@@ -92,6 +96,7 @@ class StationController extends Controller
         $station_name = 'Station-' . $itemType->type_name . '-' . $station_number . '-' . $uniqueCode;
         $storeData['station_name'] = $station_name;
         $storeData['stock'] = 0;
+        
         $validate = Validator::make($storeData, [
             'id_type' => 'required',
             'x' => 'required',
@@ -107,7 +112,7 @@ class StationController extends Controller
 
         if ($station) {
             return response([
-                'success' => true,
+                'status' => 'success',
                 'message' => "Create Data $station_name Success",
                 'data' => $station
             ], 200);

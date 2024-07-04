@@ -68,14 +68,19 @@ class LogAction
     }
     protected function getTableNameFromRoute($routeUri)
     {
-        // Example logic to determine table name based on route URI
-        if (strpos($routeUri, '/item')) {
-            return 'items';
+        switch (true) {
+            case strpos($routeUri, '/item'):
+                return 'items';
+            case strpos($routeUri, '/user'):
+                return 'users';
+            case strpos($routeUri, '/itemtype'):
+                return 'itemtypes';
+            case strpos($routeUri, '/station'):
+                return 'stations';
+            case strpos($routeUri, '/task'):
+                return 'tasks';
+            default:
+                return '';
         }
-
-        // Add more conditions for other endpoints if needed
-
-        // If no match found, return empty string or handle accordingly
-        return '';
     }
 }

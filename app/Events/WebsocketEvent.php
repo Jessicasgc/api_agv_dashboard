@@ -41,9 +41,9 @@ class WebsocketEvent implements ShouldBroadcastNow
     {
         //return ['data' => $this->agvData];
         return [
-            'id' => $this->station->id,
-            'x' => $this->station->x,
-            'y' => $this->station->y,
+            'id' => $this->stationData->id,
+            'x' => $this->stationData->x,
+            'y' => $this->stationData->y,
         ];
     }
 }

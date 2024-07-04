@@ -11,8 +11,85 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
+use App\Models\LogAuth;
+use App\Models\ActionLog;
+
 class AuthController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('log.action')->only(['register', 'updateUser', 'destroyUser']);
+    }
+    public function getLogAuth()
+    {
+        $logs = LogAuth::all();
+       
+        if(count($logs) > 0){
+            return response()->json([
+                'status' => 'success',
+                'message' => 'The log auth data retrieved successfully',
+                'data' => $logs
+            ], 200);
+        }
+        return response()->json([
+            'status' => 'failed',
+            'message' => 'Log Auth is Empty',
+            'data' => null
+        ], 404);
+    }
+
+    public function getLast5LogAuth()
+    {
+        $logs = LogAuth::orderBy('created_at', 'desc')->take(5)->get();
+        if(count($logs) > 0){
+            return response()->json([
+                'status' => 'success',
+                'message' => 'The log auth data retrieved successfully',
+                'data' => $logs
+            ], 200);
+        }
+        return response()->json([
+            'status' => 'failed',
+            'message' => 'Log Auth is Empty',
+            'data' => null
+        ], 404);
+    }
+    
+    public function getLogAction()
+    {
+        $users = ActionLog::all();
+        
+        if(count($logs) > 0){
+            return response()->json([
+                'status' => 'success',
+                'message' => 'The action log data retrieved successfully',
+                'data' => $logs
+            ], 200);
+        }
+        return response()->json([
+            'status' => 'failed',
+            'message' => 'User data is Empty',
+            'data' => null
+        ], 404);
+    }
+    public function getLogActionByAuthUser()
+    {
+        $authUserId = Auth::id();
+        $logs = ActionLog::where('id_user', $authUserId)->get();
+        if(count($logs) > 0){
+            return response()->json([
+                'status' => 'success',
+                'message' => 'The action log of authenticated user retrieved successfully',
+                'data' => $logs
+            ], 200);
+        }
+        return response()->json([
+            'status' => 'failed',
+            'message' => 'User data is Empty',
+            'data' => null
+        ], 404);
+    }
+
     public function getAllUser()
     {
         // $users = User::all();

@@ -13,7 +13,7 @@ class ItemsController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('log.action:item')->only(['store', 'updateById', 'destroyById']);
+        $this->middleware('log.action')->only(['store', 'updateById', 'destroyById']);
     }
     public function index()
     {
@@ -112,7 +112,7 @@ class ItemsController extends Controller
         
         if ($item) {
             return response([
-                'success' => true,
+                'status' => 'success',
                 'message' => "Create Data $item_code Success",
                 'data' => $item
             ], 200);

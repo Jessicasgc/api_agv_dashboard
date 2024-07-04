@@ -17,8 +17,14 @@ use Ratchet\Client\Connector as WebSocketConnector;
 use React\EventLoop\Factory as EventLoopFactory;
 use React\Socket\Connector as SocketConnector;
 
+// use App\Events\SendTask;
+use App\Http\Controllers\WebSocketController;
 class TasksController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('log.action')->only(['store', 'updateById', 'destroyById']);
+    }
     public function index()
     {
         $tasks = Task::all();
@@ -50,249 +56,284 @@ class TasksController extends Controller
         ], 404);
     }
  
-    private function sendDataToWebSocket(array $data)
-    {
-        // Convert data to JSON format
-        $jsonData = json_encode($data);
+    // private function sendDataToWebSocket(array $data)
+    // {
+    //     // Convert data to JSON format
+    //     $jsonData = json_encode($data);
 
-        // WebSocket server URL
-        $webSocketServerUrl = 'ws://localhost:80/dashboard';
+    //     // WebSocket server URL
+    //     $webSocketServerUrl = 'ws://localhost:80/dashboard';
 
-        // Create an event loop
-        $loop = EventLoopFactory::create();
+    //     // Create an event loop
+    //     $loop = EventLoopFactory::create();
 
-        // Create a WebSocket connector
-        $connector = new WebSocketConnector($loop, new SocketConnector($loop, [
-            'timeout' => 30,
-        ]));
+    //     // Create a WebSocket connector
+    //     $connector = new WebSocketConnector($loop, new SocketConnector($loop, [
+    //         'timeout' => 30,
+    //     ]));
 
-        // Connect to the WebSocket server and send data
-        $connector($webSocketServerUrl)->then(function (WebSocket $connection) use ($jsonData) {
-            // Send JSON data to the WebSocket server
-            $connection->send($jsonData);
+    //     // Connect to the WebSocket server and send data
+    //     $connector($webSocketServerUrl)->then(function (WebSocket $connection) use ($jsonData) {
+    //         // Send JSON data to the WebSocket server
+    //         $connection->send($jsonData);
 
-            // Close the connection
-            $connection->close();
-        }, function ($e) {
-            // Handle connection error
-            echo "Could not connect: {$e->getMessage()}\n";
-        });
+    //         // Close the connection
+    //         $connection->close();
+    //     }, function ($e) {
+    //         // Handle connection error
+    //         echo "Could not connect: {$e->getMessage()}\n";
+    //     });
 
-        // Run the event loop
-        $loop->run();
-    }
-
+    //     // Run the event loop
+    //     $loop->run();
+    // }
+    // private function handleWebSocketResponse() {
+    //     $loop = Factory::create(); // Create ReactPHP event loop
+    //     $connector = new Connector($loop, new ReactConnector($loop));
+    
+    //     $connector('ws://localhost:80') // Replace with your WebSocket server URL
+    //         ->then(function(WebSocket $conn) use ($loop) {
+    //             $conn->on('message', function($msg) {
+    //                 // Handle WebSocket message
+    //                 // Example: Log the message
+    //                 \Log::info('WebSocket message received:', ['message' => $msg]);
+    
+    //                 // Example: Parse the message JSON
+    //                 $data = json_decode($msg, true);
+    
+    //                 // Example: Check if the message confirms data receipt
+    //                 if (isset($data['type']) && $data['type'] === 'backend') {
+    //                     \Log::info('Data acknowledged by WebSocket server.');
+    //                     // Implement further actions if needed
+    //                 }
+    //             });
+    
+    //             $conn->on('close', function($code = null, $reason = null) use ($loop) {
+    //                 \Log::info("Connection closed ({$code} - {$reason})");
+    //                 $loop->stop(); // Stop the event loop if the connection is closed
+    //             });
+    //         }, function($e) use ($loop) {
+    //             \Log::error("Could not connect to WebSocket: {$e->getMessage()}");
+    //             $loop->stop(); // Stop the event loop on connection error
+    //         });
+    
+    //     $loop->run(); // Start the ReactPHP event loop
+    // }
     public function store(Request $request)
     {
-        
         $storeData = $request->all();
         $uuid = Str::uuid();
         $uniqueCode = substr($uuid, 0, 8); 
         $task_code = 'Task-' . $uniqueCode;
-
+    
         $storeData['task_code'] = $task_code;
-
+    
         $allAGVs = AGV::all();
         $allStation = Station::all();
         $allTask = Task::all();
         $countEachAGVProcessingAllocatedTasks = [];
         $countEachAGVWaitingTasks = [];
-        if (!empty($storeData['id_destination_station']) && empty($storeData['id_start_station'])) {
+        $itemFind = Item::find($storeData['id_item']);
+        $startStation = Station::find($itemFind->id_station);
+        
+        if ($startStation==null) {
             // Generating task name for item entering station
             $item = Item::find($storeData['id_item']);
+            $storeData['id_start_station'] = 4;
             $destinationStation = Station::find($storeData['id_destination_station']);
             $task_name = "Put in {$item->item_code} to {$destinationStation->station_name}";
-        } elseif ($storeData['id_destination_station'] === 3 && !empty($storeData['id_start_station'])) {
+        } elseif ($storeData['id_destination_station'] === 4) {
             // Generating task name for item exiting station
             $item = Item::find($storeData['id_item']);
-            $startStation = Station::find($storeData['id_start_station']);
+            $destinationStation = Station::find(4);
+            $storeData['id_start_station'] = $startStation;
             $task_name = "Take out {$item->item_code} from {$startStation->station_name}";
-        } elseif (!empty($storeData['id_start_station']) && !empty($storeData['id_start_station'])) {
+        } elseif ($startStation!==null) {
             // Generating task name for item transferring between stations
             $item = Item::find($storeData['id_item']);
             $destinationStation = Station::find($storeData['id_destination_station']);
-            $startStation = Station::find($storeData['id_start_station']);
+            $storeData['id_start_station'] = $startStation;
             $task_name = "Move the {$item->item_code} from {$startStation->station_name} to {$destinationStation->station_name}";
         } else {
             // If neither station is provided, task name cannot be generated
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Please provide destination station',
+                'message' => 'Invalid',
                 'data' => null
             ], 400);
         }
-
+    
         $storeData['task_name'] = $task_name;
+        $waitingCount = Task::where('task_status', 'waiting')->count();
+    
         // Loop through each AGV and count the tasks with the specified statuses
         foreach ($allAGVs as $agv) {
             $processingAllocatedCount = Task::where('id_agv', $agv->id)
-                        ->whereIn('task_status', ['processing', 'allocated'])
-                        ->count();
-            $waitingCount = Task::where('id_agv', $agv->id)
-            ->where('task_status', 'waiting')
-            ->count();
+                ->whereIn('task_status', ['processing', 'allocated'])
+                ->count();
+            
             $countEachAGVProcessingAllocatedTasks[$agv->id] = $processingAllocatedCount;
-            $countEachAGVWaitingTasks[$agv->id] = $waitingCount;
         } 
-
+    
         $minFunctionValue = PHP_INT_MAX;
         $selectedAGVId = null;
-
-        foreach ($allAGVs as $agv) {
-            $agvId = $agv->id;
-            $processingAndAllocatedCount = $countEachAGVProcessingAllocatedTasks[$agvId] ?? 0;
-            $waitingCount = $countEachAGVWaitingTasks[$agvId] ?? 0;
     
-            if ($processingAndAllocatedCount > 0 && $processingAndAllocatedCount <= 5  && $waitingCount == 0) {
-                $destinationStationId = $storeData['id_destination_station'];
-                $destinationStation = Station::find($destinationStationId);
-                $destinationX = $destinationStation->x;
-                $destinationY = $destinationStation->y;
+        // Check the global condition outside of the foreach loop
+        if ($waitingCount === 0) {
+            foreach ($allAGVs as $agv) {
+                $agvId = $agv->id;
+                $processingAndAllocatedCount = $countEachAGVProcessingAllocatedTasks[$agvId] ?? 0;
     
-                // Get power data from AGV
-                $agvPower = $agv->power;
-    
-                // Calculate the function value for this AGV
-                $distance = sqrt(pow($destinationX - $agv->position->x, 2) + pow($destinationY - $agv->position->y, 2));
-                $jTask = $processingAndAllocatedCount;
-                $stock = $destinationStation->stock;
-    
-                $countFunction = pow($distance, 2) + pow((250 / $agvPower), 2) + pow((2 * $jTask / 5), 2) + pow($stock / 2, 2);
-    
-                // Check if this function value is the smallest encountered so far
-                if ($countFunction < $minFunctionValue) {
-                    $minFunctionValue = $countFunction;
-                    $selectedAGVId = $agvId;
-                }
-                $validate = Validator::make($storeData, [
-                    'id_item' => 'required',
-                    'id_destination_station' => 'required',
-                ]);
-        
-                if($validate->fails())
-                    return response(['message' => $validate->errors()], 400);
-                    
-                // $storeData['task_status'] = 'allocated';
-                $task = Task::create([
-                    'id_start_station' => $storeData['id_start_station'],
-                    'id_destination_station' => $storeData['id_destination_station'],
-                    'task_code' => $task_code,
-                    'task_name' => $storeData['task_name'],
-                    'id_agv' => $selectedAGVId,
-                    'id_item' => $storeData['id_item'],
-                    'task_status' => 'allocated',
-                    'start_time' => null,
-                    'end_time' => null,
-                ]);    
-
-                if ($task) {
-                    return response([
-                        'success' => true,
-                        'message' => "Create Data $task_code Task Success",
-                        'data' => $task,
-                        'assigned_agv_id' => $selectedAGVId
-                    ], 200);
-                } else {
-                    return response()->json([
-                        'status' => 'failed',
-                        'message' => "Data $task_code failed to create",
-                        'data' => null
-                    ], 400);
-                    return response()->json([
-                        'status' => 'failed',
-                        'message' => "Data $task_code failed to create",
-                        'data' => null
-                    ], 500);
-                }
-
-                if ($task) {
-                    // Prepare data for WebSocket - start station
-                    if (!empty($task->id_start_station)) {
-                        $startStation = Station::find($task->id_start_station);
-                        $dataToSendStartStation = [
-                            'task_code' => $task_code,
-                            'id_agv' => $selectedAGVId,
-                            'goal_start' => [
-                                'id_start_station' => $startStation->id,
-                                'x' => $startStation->x,
-                                'y' => $startStation->y,
-                            ]
-                        ];
-                        // Send data to WebSocket server for start station
-                        $this->sendDataToWebSocket($dataToSendStartStation);
+                if ( $processingAndAllocatedCount < 5) {
+                    if ($startStation === null) {
+                        $startStation = Station::find(4);
+                        $startX = $startStation->x;
+                        $startY = $startStation->y;
                     } else {
-                        // Prepare data for WebSocket - homestation
-                        $homestation = Station::find(3); // Assuming homestation id is 3
-                        $dataToSendHomestation = [
-                            'task_code' => $task_code,
-                            'id_agv' => $selectedAGVId,
-                            'goal_start' => [
-                                'id_start_station' => 3,
-                                'x' => $homestation->x,
-                                'y' => $homestation->y,
-                            ]
-                        ];
-                        // Send data to WebSocket server for homestation
-                        $this->sendDataToWebSocket($dataToSendHomestation);
+                        $startX = $startStation->x;
+                        $startY = $startStation->y;
                     }
-            
-                    // Prepare data for WebSocket - destination station
-                    $destinationStation = Station::find($storeData['id_destination_station']);
-                    $dataToSendDestinationStation = [
-                        'task_code' => $task_code,
-                        'id_agv' => $selectedAGVId,
-                        'goal_destination' => [
-                            'id_destination_station' => $destinationStation->id,
-                            'x' => $destinationStation->x,
-                            'y' => $destinationStation->y,
-                        ]
-                    ];
-                    // Send data to WebSocket server for destination station
-                    $this->sendDataToWebSocket($dataToSendDestinationStation);
-                
-                
-               
-                
-            }else{
-                $storeData['task_status'] = 'waiting';
-                $storeData['id_agv'] = null; // Set AGV ID to null
-                
-                $task = Task::create([
-                    'id_start_station' => $storeData['id_start_station'],
-                    'id_destination_station' => $storeData['id_destination_station'],
-                    'task_code' => $task_code,
-                    'task_name' => $storeData['task_name'],
-                    'id_agv' => null,
-                    'id_item' => $storeData['id_item'],
-                    'task_status' => 'waiting',
-                    'start_time' => null,
-                    'end_time' => null,
-                ]);
-                if ($task) {
-                    return response([
-                        'success' => true,
-                        'message' => "Create Data $task_code Task Success",
-                        'data' => $task,
-                        'assigned_agv_id' => null
-                    ], 200);
-                } else {
-                    return response()->json([
-                        'status' => 'failed',
-                        'message' => "Data $task_code failed to create",
-                        'data' => null
-                    ], 400);
-                    return response()->json([
-                        'status' => 'failed',
-                        'message' => "Data $task_code failed to create",
-                        'data' => null
-                    ], 500);
+                    
+                    // Get power data from AGV
+                    $agvPower = $agv->power;
+                    \Log::info('AGV Position:', ['position' => $agv->position]);
+                    $position = $agv->position;
+                    $agvPosition = $agv->position;
+                    $agvX = $agvPosition['x'];
+                    $agvY = $agvPosition['y'];
+    
+                    // Calculate the function value for this AGV
+                    $distance = sqrt(pow($startX - $agvX, 2) + pow($startY - $agvY, 2));
+                    $jTask = $processingAndAllocatedCount;
+                    $stock = $destinationStation->stock;
+                    
+                    if($agvPower == 0){
+                        $countFunction = 1000;
+                    }else{
+                        $countFunction = pow($distance, 2) + pow((250 / $agvPower), 2) + pow((2 * $jTask / 5), 2) + pow($stock / 2, 2);
+                    }
+                    
+                    
+                    // Find the AGV with the minimum function value
+                    if ($countFunction < $minFunctionValue) {
+                        $minFunctionValue = $countFunction;
+                        $selectedAGVId = $agvId;
+                    }
                 }
             }
-           
         }
-    }
+         // Check if a suitable AGV was found
+    if (!is_null($selectedAGVId)) {
+        $storeData['task_status'] = 'allocated';
+        $task = Task::create([
+            'id_start_station' =>  $startStation?$startStation->id:$storeData['id_start_station'] ,
+            'id_destination_station' => $storeData['id_destination_station'],
+            'task_code' => $task_code,
+            'task_name' => $storeData['task_name'],
+            'id_agv' => $selectedAGVId,
+            'id_item' => $storeData['id_item'],
+            'task_status' => $storeData['task_status'],
+            'start_time' => null,
+            'end_time' => null,
+        ]);  
+
+        $destinationStation = Station::find($storeData['id_destination_station']);
+        if ($task) {
+            if (!empty($startStation)) {
+                $dataToSendStation = [
+                    'type' => 'task',
+                    'data' => [
+                        'task_code' => $task_code,
+                        'id_agv' => $selectedAGVId,
+                        'goal_start' => [
+                            'x' => $selectedAGVId == 1 ? $startStation->x_agv1 : $startStation->x_agv2,
+                            'y' => $selectedAGVId == 1 ? $startStation->y_agv1 : $startStation->y_agv2,
+                        ],
+                        'goal_destination' => [
+                            'x' => $selectedAGVId == 1 ? $destinationStation->x_agv1 : $destinationStation->x_agv2,
+                            'y' => $selectedAGVId == 1 ? $destinationStation->y_agv1 : $destinationStation->y_agv2,
+                        ],
+                    ]
+                ];
+                $webSocketController = new WebSocketController();
+                $webSocketController->sendDataToWebSocket($dataToSendStation);
+            } else {
+                $homestation = Station::find(4); 
+                $dataToSendHomestation = [
+                    'type' => 'task',
+                    'data' => [
+                        'task_code' => $task_code,
+                        'id_agv' => $selectedAGVId,
+                        'goal_start' => [
+                            'x' => $selectedAGVId == 1 ? $homestation->x_agv1: $homestation->x_agv2,
+                            'y' => $selectedAGVId == 1 ? $homestation->y_agv1: $homestation->y_agv2,
+                        ],
+                        'goal_destination' => [
+                            'x' => $selectedAGVId == 1 ? $destinationStation->x_agv1 : $destinationStation->x_agv2,
+                            'y' => $selectedAGVId == 1 ? $destinationStation->y_agv1 : $destinationStation->y_agv2,
+                        ],
+                    ]
+                ];
+                $webSocketController = new WebSocketController();
+                $webSocketController->sendDataToWebSocket($dataToSendHomestation);
+            }
+           
+
+            return response([
+                'status' => 'success',
+                'message' => "Create Data $task_code Task Success",
+                'data' => $task,
+                'assigned_agv_id' => $selectedAGVId
+            ], 200);
+        } else {
+            return response()->json([
+                'status' => 'failed',
+                'message' => "Data $task_code failed to create",
+                'data' => null
+            ], 400);
+        }
+    } else {
+        // No suitable AGV found, set task status to 'waiting'
+        $storeData['task_status'] = 'waiting';
+        $storeData['id_agv'] = null; // Set AGV ID to null
+
+        $task = Task::create([
+            'id_start_station' => $startStation?$startStation->id:$storeData['id_start_station'],
+            'id_destination_station' => $storeData['id_destination_station'],
+            'task_code' => $task_code,
+            'task_name' => $storeData['task_name'],
+            'id_agv' => null,
+            'id_item' => $storeData['id_item'],
+            'task_status' => 'waiting',
+            'start_time' => null,
+            'end_time' => null,
+        ]);
+          
+            if ($task) {
+                return response([
+                    'status' => 'success',
+                    'message' => "Create Data $task_code Task Success",
+                    'data' => $task,
+                    'assigned_agv_id' => null
+                ], 200);
+            } else {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => "Data $task_code failed to create",
+                    'data' => null
+                ], 400);
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => "Data $task_code failed to create",
+                    'data' => null
+                ], 500);
+            }
+            }
+        }
         
-    }
+    
+        
+    
 
     // public function store(Request $request)
     // {
@@ -712,6 +753,44 @@ class TasksController extends Controller
     
     }
 
+    public function showProcessingTasks()
+    {
+        $task = Task::where('task_status', 'processing')->get();
+
+        if(!is_null($task)){
+            return response([
+                'success' => true,
+                'message' => "Retrieve Task Data with processing task status success",
+                'data' => $task
+            ], 200);
+        }
+
+        return response([
+            'success' => false,
+            'message' => "Task Data with processing task status Not Found",
+            'data' => null
+        ], 404);
+    
+    }
+    public function showAllocatedTasks()
+    {
+        $task = Task::where('task_status', 'allocated')->get();
+
+        if(!is_null($task)){
+            return response([
+                'success' => true,
+                'message' => "Retrieve Task Data with allocated task status success",
+                'data' => $task
+            ], 200);
+        }
+
+        return response([
+            'success' => false,
+            'message' => "Task Data with allocated task status Not Found",
+            'data' => null
+        ], 404);
+    
+    }
     public function showWaitingTasks()
     {
         $task = Task::where('task_status', 'waiting')->get();

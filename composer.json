@@ -9,6 +9,7 @@
         "amphp/websocket-client": "^2.0",
         "barryvdh/laravel-cors": "*",
         "beyondcode/laravel-websockets": "^2.0@beta",
+        "cboden/ratchet": "^0.4.4",
         "fruitcake/laravel-cors": "^2.0.5",
         "guzzlehttp/guzzle": "^7.2",
         "haruncpi/laravel-id-generator": "^1.1",
@@ -18,7 +19,7 @@
         "laravel/tinker": "^2.7",
         "pusher/pusher-php-server": "7.0.2",
         "ratchet/pawl": "^0.4.1",
-        "textalk/websocket": "^1.5"
+        "textalk/websocket": "^1.6"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",

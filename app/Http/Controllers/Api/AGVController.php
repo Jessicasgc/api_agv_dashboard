@@ -18,13 +18,16 @@ class AGVController extends Controller
 {
     public function index()
     {
-        // $this->startWebSocketClient();
         $agvs = AGV::all();
-      
+        // $agvs = $agvs->map(function($agv) {
+        //     $agv->agv_name = utf8_encode($agv->agv_name);
+        //     $agv->agv_status = utf8_encode($agv->agv_status);
+        //     return $agv;
+        // });
         if(count($agvs) > 0){
             return response()->json([
                 'status' => 'success',
-                'message' => 'Data found',
+                'message' => 'Retrieve AGVs Data success',
                 'data' => $agvs
             ], 200);
         }
