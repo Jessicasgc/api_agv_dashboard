@@ -141,47 +141,6 @@ class ItemTypesController extends Controller
         }
     }
 
-    public function updateByName(Request $request, $type_name)
-    {
-        $item_type = ItemType::where('type_name', $type_name)->first();
-
-        if(is_null($item_type)){
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'Data not found',
-                'data' => null
-            ], 404);
-        }
-
-        $updateData = $request->all();
-    
-        $validate = Validator::make($updateData, [
-            'type_name' => 'required'
-        ]);
-        if($validate->fails()){
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'Validation Error',
-                'data' => $validate->errors()
-            ], 400);
-        }
-
-        $item_type->type_name = $updateData['type_name'];
-
-        if($item_type->save()){
-            return response()->json([
-                'status' => 'success',
-                'message' => "Type Data with name $type_name updated successfully",
-                'data' => $item_type
-            ], 200);
-        } else {
-            return response()->json([
-                'status' => 'failed',
-                'message' => "Type Data with name $type_name failed to update",
-                'data' => null
-            ], 500);
-        }
-    }
     public function destroyById($id)
     {
         $item_type = ItemType::find($id);
@@ -205,29 +164,6 @@ class ItemTypesController extends Controller
         return response([
             'status' => 'failed',
             'message' => "Delete Item Type with ID $id Failed",
-            'data' => $item_type
-        ], 400);
-    }
-    public function destroyByName($type_name)
-    {
-        $item_type = ItemType::where('type_name', $type_name)->first();
-
-        if(is_null($item_type)){
-            return response([
-                'message' => "$type_name Not Found",
-                'data' => null
-            ], 404);
-        }
-
-        if($item_type->delete()){
-            return response([
-                'message' => "Delete $type_name Success",
-                'data' => $item_type
-            ], 200);
-        }
-
-        return response([
-            'message' => "Delete $type_name Failed",
             'data' => $item_type
         ], 400);
     }

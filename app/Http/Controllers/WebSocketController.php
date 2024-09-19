@@ -20,8 +20,8 @@ class WebSocketController extends Controller
             // Menerima dan mencetak balasan dari WebSocket server
             $response = $client->receive();
             echo "Response from WebSocket server: " . $response;
-            // Menutup koneksi
-            $client->close();
+            // // Menutup koneksi
+            // $client->close();
         } catch (\Exception $e) {
             \Log::error('Error connecting to WebSocket: ' . $e->getMessage());
         }

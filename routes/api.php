@@ -33,13 +33,8 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 // Route::middleware('auth:sanctum')->get('/auth-check', [AuthController::class, 'checkAuth']);
 Route::group(['middleware' => 'auth:api'], function(){
     Route::get('/auth-check', [AuthController::class, 'authCheck']);
-    // Route::get('/profile', [AuthController::class, 'showProfile']);
-    Route::put('/changePs', [AuthController::class, 'changePassword']);
     Route::post('/logout', [AuthController::class, 'logout']);
-   
 
-   
-    
     Route::middleware('log.action')->group(function () {
         
         //User
@@ -50,43 +45,34 @@ Route::group(['middleware' => 'auth:api'], function(){
         Route::delete('/user/{id}', [AuthController::class, 'destroyUser']);
         Route::get('/user/logauth5', [AuthController::class, 'getLast5LogAuth']);
         Route::get('/user/authedLogAction', [AuthController::class, 'getLogActionByAuthUser']);
+        Route::get('/user/logaction', [AuthController::class, 'getLogAction']);
+        Route::get('/user/logauth', [AuthController::class, 'getLogAuth']);
         Route::post('/register', [AuthController::class, 'register']);
 
         //Station
         Route::get('/station', [StationController::class, 'index']);
         Route::get('/station/name/{station_name}', [StationController::class, 'show']);
-        Route::post('/station', [StationController::class, 'storee']);
+        Route::post('/station', [StationController::class, 'store']);
         Route::put('/station/{id}', [StationController::class, 'updateById']);
-        Route::put('/station/name/{station_name}', [StationController::class, 'updateByName']);
-        Route::delete('/station/name/{station_name}', [StationController::class, 'destroyByName']);
         Route::delete('/station/{id}', [StationController::class, 'destroyById']);
 
          //Item Type
         Route::get('/itemtype', [ItemTypesController::class, 'index']);
         Route::get('/itemtype/name/{type_name}', [ItemTypesController::class, 'show']);
         Route::post('/itemtype', [ItemTypesController::class, 'store']);
-        Route::put('/itemtype/name/{type_name}', [ItemTypesController::class, 'updateByName']);
         Route::put('/itemtype/{id}', [ItemTypesController::class, 'updateById']);
         Route::delete('/itemtype/{id}', [ItemTypesController::class, 'destroyById']);
-        Route::delete('/itemtype/name/{type_name}', [ItemTypesController::class, 'destroyByName']);
 
         //Item
         Route::get('/item', [ItemsController::class, 'index']);
         Route::get('/item/{id}', [ItemsController::class, 'showById']);
-        Route::get('/item/name/{item_name}', [ItemsController::class, 'showByName']);
-        Route::get('/item/code/{item_code}', [ItemsController::class, 'showByCode']);
         Route::post('/item', [ItemsController::class, 'store']);
         Route::put('/item/{id}', [ItemsController::class, 'updateById']);
-        Route::put('/item/code/{item_code}', [ItemsController::class, 'updateByCode']);
         Route::delete('/item/{id}', [ItemsController::class, 'destroyById']);
-        Route::delete('/item/code/{item_code}', [ItemsController::class, 'destroyByName']);
-
         //Task
         Route::get('/task', [TasksController::class, 'index']);
         Route::get('/task/{id}', [TasksController::class, 'showById']);
         Route::get('/task/agv/{id_agv}', [TasksController::class, 'showByIdAGV']);
-        Route::get('/task/name/{task_name}', [TasksController::class, 'showByName']);
-        Route::get('/task/code/{task_code}', [TasksController::class, 'showByCode']);
         Route::get('/processing_task', [TasksController::class, 'showProcessingTasks']);
         Route::get('/allocated_task', [TasksController::class, 'showAllocatedTasks']);
         Route::get('/waiting_task', [TasksController::class, 'showWaitingTasks']);
@@ -96,10 +82,7 @@ Route::group(['middleware' => 'auth:api'], function(){
         Route::get('/task/agv/{id_agv}/done', [TasksController::class, 'showDoneByIdAGV']);
         Route::post('/task', [TasksController::class, 'store']);
         Route::put('/task/{id}', [TasksController::class, 'updateById']);
-        Route::put('/task/code/{task_code}', [TasksController::class, 'updateByCode']);
         Route::delete('/task/{id}', [TasksController::class, 'destroyById']);
-        Route::delete('/task/name/{task_name}', [TasksController::class, 'destroyByName']);
-        Route::delete('/task/code/{task_code}', [TasksController::class, 'destroyByCode']);
     });
 
     //AGV
@@ -110,12 +93,6 @@ Route::group(['middleware' => 'auth:api'], function(){
     
 });
 
-// //User
-Route::post('/forgetPs', [AuthController::class, 'changePasswordBeforeLogin']);
-
-// Route::post('/changePr', [AuthController::class, 'changeProfile']);
-// Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
-// Route::post('/refresh', [AuthController::class, 'refresh']);
-// Route::post('/me', [AuthController::class, 'me']);
+

@@ -12,13 +12,13 @@ use Illuminate\Support\Str;
 use App\Models\Item;
 use App\Models\Station;
 use App\Models\AGV;
+use App\Models\AGVTracking;
 use Carbon\Carbon;
 use Ratchet\Client\Connector as WebSocketConnector;
 use React\EventLoop\Factory as EventLoopFactory;
 use React\Socket\Connector as SocketConnector;
-
-// use App\Events\SendTask;
 use App\Http\Controllers\WebSocketController;
+
 class TasksController extends Controller
 {
     public function __construct()
@@ -29,14 +29,12 @@ class TasksController extends Controller
     {
         $tasks = Task::all();
         $tasksWithAgvData = $tasks->map(function ($task) {
-            // $agvName = AGV::find($task->id_agv)->agv_name;
-            // $task->agv_name = $agvName;
             $agv = AGV::find($task->id_agv);
             if ($agv) {
                 $task->agv_name = $agv->agv_name;
-                $task->agv_code = $agv->agv_code; // Assuming 'agv_code' is the attribute name for AGV code
+                $task->agv_code = $agv->agv_code; 
             } else {
-                $task->agv_name = null; // Handle case where AGV is not found
+                $task->agv_name = null;
                 $task->agv_code = null;
             }
             return $task;
@@ -56,69 +54,6 @@ class TasksController extends Controller
         ], 404);
     }
  
-    // private function sendDataToWebSocket(array $data)
-    // {
-    //     // Convert data to JSON format
-    //     $jsonData = json_encode($data);
-
-    //     // WebSocket server URL
-    //     $webSocketServerUrl = 'ws://localhost:80/dashboard';
-
-    //     // Create an event loop
-    //     $loop = EventLoopFactory::create();
-
-    //     // Create a WebSocket connector
-    //     $connector = new WebSocketConnector($loop, new SocketConnector($loop, [
-    //         'timeout' => 30,
-    //     ]));
-
-    //     // Connect to the WebSocket server and send data
-    //     $connector($webSocketServerUrl)->then(function (WebSocket $connection) use ($jsonData) {
-    //         // Send JSON data to the WebSocket server
-    //         $connection->send($jsonData);
-
-    //         // Close the connection
-    //         $connection->close();
-    //     }, function ($e) {
-    //         // Handle connection error
-    //         echo "Could not connect: {$e->getMessage()}\n";
-    //     });
-
-    //     // Run the event loop
-    //     $loop->run();
-    // }
-    // private function handleWebSocketResponse() {
-    //     $loop = Factory::create(); // Create ReactPHP event loop
-    //     $connector = new Connector($loop, new ReactConnector($loop));
-    
-    //     $connector('ws://localhost:80') // Replace with your WebSocket server URL
-    //         ->then(function(WebSocket $conn) use ($loop) {
-    //             $conn->on('message', function($msg) {
-    //                 // Handle WebSocket message
-    //                 // Example: Log the message
-    //                 \Log::info('WebSocket message received:', ['message' => $msg]);
-    
-    //                 // Example: Parse the message JSON
-    //                 $data = json_decode($msg, true);
-    
-    //                 // Example: Check if the message confirms data receipt
-    //                 if (isset($data['type']) && $data['type'] === 'backend') {
-    //                     \Log::info('Data acknowledged by WebSocket server.');
-    //                     // Implement further actions if needed
-    //                 }
-    //             });
-    
-    //             $conn->on('close', function($code = null, $reason = null) use ($loop) {
-    //                 \Log::info("Connection closed ({$code} - {$reason})");
-    //                 $loop->stop(); // Stop the event loop if the connection is closed
-    //             });
-    //         }, function($e) use ($loop) {
-    //             \Log::error("Could not connect to WebSocket: {$e->getMessage()}");
-    //             $loop->stop(); // Stop the event loop on connection error
-    //         });
-    
-    //     $loop->run(); // Start the ReactPHP event loop
-    // }
     public function store(Request $request)
     {
         $storeData = $request->all();
@@ -202,31 +137,34 @@ class TasksController extends Controller
                     $agvX = $agvPosition['x'];
                     $agvY = $agvPosition['y'];
     
-                    // Calculate the function value for this AGV
+                    // Calculate the function value for find assigned AGV
                     $distance = sqrt(pow($startX - $agvX, 2) + pow($startY - $agvY, 2));
                     $jTask = $processingAndAllocatedCount;
                     $stock = $destinationStation->stock;
                     
-                    if($agvPower == 0){
+                    if($agvPower <= 20){
                         $countFunction = 1000;
                     }else{
                         $countFunction = pow($distance, 2) + pow((250 / $agvPower), 2) + pow((2 * $jTask / 5), 2) + pow($stock / 2, 2);
                     }
                     
-                    
+                    // $onlineAGV = AGV::where('status', 'online')->count;
                     // Find the AGV with the minimum function value
                     if ($countFunction < $minFunctionValue) {
                         $minFunctionValue = $countFunction;
                         $selectedAGVId = $agvId;
                     }
+                    // if($onlineAGV!=0){
+
+                    // }
                 }
             }
         }
-         // Check if a suitable AGV was found
+
     if (!is_null($selectedAGVId)) {
         $storeData['task_status'] = 'allocated';
         $task = Task::create([
-            'id_start_station' =>  $startStation?$startStation->id:$storeData['id_start_station'] ,
+            'id_start_station' =>  $startStation ? $startStation->id : $storeData['id_start_station'] ,
             'id_destination_station' => $storeData['id_destination_station'],
             'task_code' => $task_code,
             'task_name' => $storeData['task_name'],
@@ -234,12 +172,51 @@ class TasksController extends Controller
             'id_item' => $storeData['id_item'],
             'task_status' => $storeData['task_status'],
             'start_time' => null,
-            'end_time' => null,
+            'end_time' => null
         ]);  
+        $agvChoosen = AGV::find($selectedAGVId);
+        $startStationLog = Station::find($task->id_start_station);
+        $destinationStationLog = Station::find($task->id_destination_station);
+        $agv1 = AGV::find(1);
+        $agv2 = AGV::find(2);
+        AGVTracking::create([
+            'id_agv_choosen' =>  1,
+            'agv_code_choosen' => $agvChoosen->agv_code,
+            'agv_name_choosen' => $agvChoosen->agv_name,
+            'agv_status_choosen' => $agvChoosen->agv_status,
+            'position_choosen' => \DB::raw("POINT({$agvChoosen->position['x']}, {$agvChoosen->position['y']})"),
+            'power_choosen' => $agvChoosen->power,
+            'speed_choosen' => $agvChoosen->speed,
+            'id_task' => $task->id,
+            'start_station_name' => $startStationLog->station_name,
+            'destination_station_name' => $destinationStationLog->station_name,
+            'task_code' => $task->task_code,
+            'task_name' => $task->task_name,
+            'task_status' => $task->task_status,
+            'item_name' => $itemFind->item_name,
+            'start_time' => $task->start_time,
+            'end_time' => $task->end_time,
+            'id_agv_1' => 1,
+            'agv_code_1' => $agv1->agv_code,
+            'agv_name_1' => $agv1->agv_name,
+            'agv_status_1' => $agv1->agv_status,
+            'position_1' => \DB::raw("POINT({$agv1->position['x']}, {$agv1->position['y']})"),
+            'power_1' => $agv1->power,
+            'speed_1' => $agv1->speed,
+            'id_agv_2' => 2,
+            'agv_code_2' => $agv2->agv_code,
+            'agv_name_2' => $agv2->agv_name,
+            'agv_status_2' => $agv2->agv_status,
+            'position_2' => \DB::raw("POINT({$agv2->position['x']}, {$agv2->position['y']})"),
+            'power_2' => $agv2->power,
+            'speed_2' => $agv2->speed,
+        ]);
+        
 
         $destinationStation = Station::find($storeData['id_destination_station']);
         if ($task) {
             if (!empty($startStation)) {
+                $webSocketController = new WebSocketController();
                 $dataToSendStation = [
                     'type' => 'task',
                     'data' => [
@@ -255,10 +232,11 @@ class TasksController extends Controller
                         ],
                     ]
                 ];
-                $webSocketController = new WebSocketController();
+                
                 $webSocketController->sendDataToWebSocket($dataToSendStation);
             } else {
                 $homestation = Station::find(4); 
+                $webSocketController = new WebSocketController();
                 $dataToSendHomestation = [
                     'type' => 'task',
                     'data' => [
@@ -274,7 +252,7 @@ class TasksController extends Controller
                         ],
                     ]
                 ];
-                $webSocketController = new WebSocketController();
+               
                 $webSocketController->sendDataToWebSocket($dataToSendHomestation);
             }
            
@@ -293,9 +271,9 @@ class TasksController extends Controller
             ], 400);
         }
     } else {
-        // No suitable AGV found, set task status to 'waiting'
+       
         $storeData['task_status'] = 'waiting';
-        $storeData['id_agv'] = null; // Set AGV ID to null
+        $storeData['id_agv'] = null; 
 
         $task = Task::create([
             'id_start_station' => $startStation?$startStation->id:$storeData['id_start_station'],
@@ -328,411 +306,100 @@ class TasksController extends Controller
                     'data' => null
                 ], 500);
             }
-            }
         }
-        
-    
-        
-    
-
-    // public function store(Request $request)
+    }
+ 
+    // public function updateById(Request $request, $id)
     // {
-        
-    //     $storeData = $request->all();
-    //     $uuid = Str::uuid();
-    //     $uniqueCode = substr($uuid, 0, 8); 
-    //     $task_code = 'Task-' . $uniqueCode;
+    //     $task = Task::find($id);
 
-    //     $storeData['task_code'] = $task_code;
+    //     if (is_null($task)) {
+    //         return response()->json([
+    //             'status' => 'failed',
+    //             'message' => "Task Data with ID $id not found",
+    //             'data' => null
+    //         ], 404);
+    //     }
+    //     $updateData = $request->all();
 
-    //     $allAGVs = AGV::all();
-
-    //     // Mendapatkan AGV yang belum mencapai batas maksimum tugas
-    //     $availableAGVs = collect([]);
-        
-    //     foreach ($allAGVs as $agv) {
-    //         $agvTasksCounts = Task::where('id_agv', $agv->id)
-    //                               ->whereNotNull('id_agv')
-    //                               ->whereIn('task_status', ['processing', 'allocated', 'done'])
-    //                               ->count();
-            
-    //         if ($agvTasksCounts < 5) { // Cek apakah AGV masih bisa menampung tugas dengan status allocated
-    //             $availableAGVs->push($agv);
+    //     $validate = Validator::make($updateData, [
+    //         'id_destination_station',
+    //         'id_start_station',
+    //         'id_item' => 'required',
+    //     ]);
+    //     if ($validate->fails()) {
+    //         return response()->json([
+    //             'status' => 'failed',
+    //             'message' => 'Validation Error',
+    //             'data' => $validate->errors()
+    //         ], 400);
+    //     }
+    //     // Generate task name based on the provided stations
+    //     if (empty($updateData['id_start_station'])) {
+    //         $item = Item::find($updateData['id_item']);
+    //         $destinationStation = Station::find($updateData['id_destination_station']);
+    //         if (!$destinationStation) {
+    //             return response()->json([
+    //                 'status' => 'failed',
+    //                 'message' => 'Invalid input station ID provided',
+    //                 'data' => null
+    //             ], 400);
     //         }
-    //     }
-        
-    //     //Task Allocation
-
-    //     // Memilih AGV secara acak dari AGV yang tersedia
-    //     $availableAGV = $availableAGVs->isEmpty() ? null : $availableAGVs->random();
-        
-    //     if ($availableAGV) {
-    //         // Menghitung jumlah tugas yang sudah dialokasikan untuk AGV yang dipilih
-    //         $agvTasksCounts = Task::where('id_agv', $availableAGV->id)
-    //                               ->whereNotNull('id_agv')
-    //                               ->whereIn('task_status', ['processing', 'allocated', 'done'])
-    //                               ->count();
-    //         var_dump($agvTasksCounts);
-    //         if ($agvTasksCounts == 0) {
-    //             // Jika belum ada tugas yang terkait dengan AGV tersebut,
-    //             // status tugas diatur menjadi "processing" dan id_agv diisi dengan ID AGV
-    //             $storeData['task_status'] = 'processing';
-    //             $storeData['id_agv'] = $availableAGV->id;
-    //         } else if ($agvTasksCounts > 0 && $agvTasksCounts <= 4) {
-    //             // Jika jumlah tugas untuk AGV tersebut belum mencapai maksimum,
-    //             // tugas akan dialokasikan ke AGV tersebut
-    //             $storeData['task_status'] = 'allocated';
-    //             $storeData['id_agv'] = $availableAGV->id;
+    //         $new_task_name = "Put in item {$item->item_code} to {$destinationStation->station_name}";
+    //     } elseif ($updateData['id_destination_station'] === 3) {
+    //         $item = Item::find($updateData['id_item']);
+    //         $startStation = Station::find($updateData['id_start_station']);
+    //         if (!$startStation) {
+    //             return response()->json([
+    //                 'status' => 'failed',
+    //                 'message' => 'Invalid output station ID provided',
+    //                 'data' => null
+    //             ], 400);
     //         }
-    //     } else {
-    //         // Jika tidak ada AGV yang tersedia, status tugas diatur menjadi "waiting"
-    //         $storeData['task_status'] = 'waiting';
-    //         $storeData['id_agv'] = null; // Set AGV ID to null
-    //     }
-        
-
-    //     // Set start time and end time based on task status
-    //     if($storeData['task_status'] == "waiting" || $storeData['task_status'] == "allocated") {
-    //         $storeData['start_time'] = null;
-    //         $storeData['end_time'] = null;
-    //     } else if ($storeData['task_status'] == "processing") {
-    //         $storeData['start_time'] = Carbon::now();
-    //     } else if ($storeData['task_status'] == "done") {
-    //         $storeData['end_time'] = Carbon::now();
-    //     }
-
-    //     if (!empty($storeData['id_destination_station']) && empty($storeData['id_start_station'])) {
-    //         // Generating task name for item entering station
-    //         $item = Item::find($storeData['id_item']);
-    //         $destinationStation = Station::find($storeData['id_destination_station']);
-    //         $task_name = "Put in {$item->item_code} to {$destinationStation->station_name}";
-    //     } elseif (empty($storeData['id_destination_station']) && !empty($storeData['id_start_station'])) {
-    //         // Generating task name for item exiting station
-    //         $item = Item::find($storeData['id_item']);
-    //         $startStation = Station::find($storeData['id_start_station']);
-    //         $task_name = "Take out {$item->item_code} from {$startStation->station_name}";
-    //     } elseif (!empty($storeData['id_start_station']) && !empty($storeData['id_start_station'])) {
-    //         // Generating task name for item transferring between stations
-    //         $item = Item::find($storeData['id_item']);
-    //         $destinationStation = Station::find($storeData['id_destination_station']);
-    //         $startStation = Station::find($storeData['id_start_station']);
-    //         $task_name = "Move the {$item->item_code} from {$startStation->station_name} to {$destinationStation->station_name}";
+    //         $new_task_name = "Take out item {$item->item_code} from {$startStation->station_name}";
+    //     } elseif (!empty($updateData['id_start_station'])) {
+    //         $item = Item::find($updateData['id_item']);
+    //         $destinationStation = Station::find($updateData['id_destination_station']);
+    //         $startStation = Station::find($updateData['id_start_station']);
+    //         if (!$destinationStation || !$startStation) {
+    //             return response()->json([
+    //                 'status' => 'failed',
+    //                 'message' => 'Invalid input or output station ID provided',
+    //                 'data' => null
+    //             ], 400);
+    //         }
+    //         $new_task_name = "Move item {$item->item_code} from {$startStation->station_name} to {$destinationStation->station_name}";
     //     } else {
     //         // If neither station is provided, task name cannot be generated
     //         return response()->json([
     //             'status' => 'failed',
-    //             'message' => 'Please provide destination station',
+    //             'message' => 'Please provide either input or output station',
     //             'data' => null
     //         ], 400);
     //     }
-
-    //     $storeData['task_name'] = $task_name;
-
-    //     $validate = Validator::make($storeData, [
-    //         'id_agv',
-    //         'id_destination_station',
-    //         'id_start_station',
-    //         'id_item' => 'required',
-    //         'task_status' => 'required',
-    //     ]);
-
-    //     if($validate->fails())
-    //         return response(['message' => $validate->errors()], 400);
-            
-    //     $task = Task::create($storeData); 
+    //     $task->task_name = $new_task_name;
         
-    //     if ($task) {
-    //         return response([
-    //             'success' => true,
-    //             'message' => "Create Data $task_code Task Success",
+    //     if($task->save()){
+    //         return response()->json([
+    //             'status' => 'success',
+    //             'message' => "Task Data with ID $id updated successfully",
     //             'data' => $task
     //         ], 200);
     //     } else {
     //         return response()->json([
     //             'status' => 'failed',
-    //             'message' => "Data $task_code failed to create",
+    //             'message' => "Task Data with ID $id failed to update",
     //             'data' => null
     //         ], 400);
     //         return response()->json([
     //             'status' => 'failed',
-    //             'message' => "Data $task_code failed to create",
+    //             'message' => "Task Data with ID $id failed to update",
     //             'data' => null
     //         ], 500);
     //     }
     // }
 
-
-    public function updateById(Request $request, $id)
-    {
-        $task = Task::find($id);
-
-        if (is_null($task)) {
-            return response()->json([
-                'status' => 'failed',
-                'message' => "Task Data with ID $id not found",
-                'data' => null
-            ], 404);
-        }
-        $updateData = $request->all();
-
-        $validate = Validator::make($updateData, [
-            'id_destination_station',
-            'id_start_station',
-            'id_item' => 'required',
-            //'task_status' => 'required',
-        ]);
-        if ($validate->fails()) {
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'Validation Error',
-                'data' => $validate->errors()
-            ], 400);
-        }
-
-    //  // Check if there are no tasks processing and the AGV is empty
-    //  $processingTasksCount = Task::where('task_status', 'processing')->count();
-    //  $emptyAGVsCount = AGV::whereDoesntHave('tasks', function ($query) {
-    //      $query->where('task_status', 'processing');
-    //  })->count();
- 
-    //  // Automatically update task status to "processing" if no tasks are processing and AGV is empty
-    //  if ($processingTasksCount == 0 && $emptyAGVsCount == AGV::count()) {
-    //      $updateData['task_status'] = 'processing';
-    //  }
- 
-    //  // Check if there is a processing task on another AGV and this AGV has no processing tasks and no tasks at all
-    //  $otherProcessingTasksCount = Task::where('task_status', 'processing')
-    //      ->where('id_agv', '<>', $task->id_agv)
-    //      ->count();
-    //  $thisAGVProcessingTasksCount = Task::where('task_status', 'processing')
-    //      ->where('id_agv', $task->id_agv)
-    //      ->count();
- 
-    //  if ($otherProcessingTasksCount > 0 && $thisAGVProcessingTasksCount == 0 && $emptyAGVsCount > 0) {
-    //      $updateData['task_status'] = 'processing';
-    //  }
- 
-    //  // Check if all AGVs have processing tasks and this AGV has fewer than or equal to 5 allocated tasks
-    //  $allocatedTasksCount = Task::where('task_status', 'allocated')
-    //      ->where('id_agv', $task->id_agv)
-    //      ->count();
- 
-    //  if ($processingTasksCount > 0 && $allocatedTasksCount <= 5) {
-    //      $updateData['task_status'] = 'allocated';
-    //  }
- 
-    //  // If there are more than 5 allocated tasks in each AGV, prevent updating to allocated status
-    //  if ($allocatedTasksCount > 5 && $updateData['task_status'] == 'allocated') {
-    //      $updateData['task_status'] = 'waiting';
-    //  }
-
-    // // Set start time and end time based on task status
-    // if ($updateData['task_status'] == "waiting" || $updateData['task_status'] == "allocated") {
-    //     $updateData['start_time'] = null;
-    //     $updateData['end_time'] = null;
-    // } else if ($updateData['task_status'] == "processing") {
-    //     $updateData['start_time'] = Carbon::now();
-    // } else if ($updateData['task_status'] == "done") {
-    //     $updateData['end_time'] = Carbon::now();
-    // }
-    //     $task->id_agv = ($updateData['task_status'] == 'waiting') ? null : $updateData['id_agv'];
-    //     $task->id_destination_station = $updateData['id_destination_station'];
-    //     $task->id_start_station = $updateData['id_start_station'];
-    //     $task->id_item = $updateData['id_item'];
-    //     $task->task_status = $updateData['task_status'];
-       
-    //     if (isset($updateData['task_status']) && $updateData['task_status'] == "processing") {
-    //         $updateData['start_time'] = Carbon::now();
-    //     } else if (isset($updateData['task_status']) && $updateData['task_status'] == "done") {
-    //         $updateData['end_time'] = Carbon::now();
-    //     } 
-
-    //     if (!is_null($task->end_time)) {
-    //         $task->task_status = "done";
-    //     }
-       
-
-        // Generate task name based on the provided stations
-        if (empty($updateData['id_start_station'])) {
-            $item = Item::find($updateData['id_item']);
-            $destinationStation = Station::find($updateData['id_destination_station']);
-            if (!$destinationStation) {
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Invalid input station ID provided',
-                    'data' => null
-                ], 400);
-            }
-            $new_task_name = "Put in item {$item->item_code} to {$destinationStation->station_name}";
-        } elseif ($updateData['id_destination_station'] === 3) {
-            $item = Item::find($updateData['id_item']);
-            $startStation = Station::find($updateData['id_start_station']);
-            if (!$startStation) {
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Invalid output station ID provided',
-                    'data' => null
-                ], 400);
-            }
-            $new_task_name = "Take out item {$item->item_code} from {$startStation->station_name}";
-        } elseif (!empty($updateData['id_start_station'])) {
-            $item = Item::find($updateData['id_item']);
-            $destinationStation = Station::find($updateData['id_destination_station']);
-            $startStation = Station::find($updateData['id_start_station']);
-            if (!$destinationStation || !$startStation) {
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Invalid input or output station ID provided',
-                    'data' => null
-                ], 400);
-            }
-            $new_task_name = "Move item {$item->item_code} from {$startStation->station_name} to {$destinationStation->station_name}";
-        } else {
-            // If neither station is provided, task name cannot be generated
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'Please provide either input or output station',
-                'data' => null
-            ], 400);
-        }
-        $task->task_name = $new_task_name;
-        
-        if($task->save()){
-            return response()->json([
-                'status' => 'success',
-                'message' => "Task Data with ID $id updated successfully",
-                'data' => $task
-            ], 200);
-        } else {
-            return response()->json([
-                'status' => 'failed',
-                'message' => "Task Data with ID $id failed to update",
-                'data' => null
-            ], 400);
-            return response()->json([
-                'status' => 'failed',
-                'message' => "Task Data with ID $id failed to update",
-                'data' => null
-            ], 500);
-        }
-    }
-
-    public function updateByCode(Request $request, $task_code)
-    {
-        $task = Task::where('task_code', $task_code)->first();
     
-        if(is_null($task)){
-            return response()->json([
-                'status' => 'failed',
-                'message' => "Task Data with name $task_name not found",
-                'data' => null
-            ], 404);
-        }
-        $updateData = $request->all();
-
-        $validAgvStatuses = ["waiting", "allocated", "processing", "done"];
-
-        // Validate AGV status
-        if (isset($updateData['task_status']) && !in_array($updateData['task_status'], $validAgvStatuses)) {
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'Invalid AGV status. Allowed values are waiting, allocated, processing, done.',
-                'data' => null
-            ], 400);
-        }
-
-        $validate = Validator::make($updateData, [
-            'id_agv' => 'required',
-            'id_destination_station',
-            'id_start_station',
-            'id_item' => 'required',
-            'task_status' => 'required',
-        ]);
-        if($validate->fails()){
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'Validation Error',
-                'data' => $validate->errors()
-            ], 400);
-        }
-        $task->id_agv = $updateData['id_agv'];
-        $task->id_destination_station = $updateData['id_destination_station'];
-        $task->id_start_station = $updateData['id_start_station'];
-        $task->id_item = $updateData['id_item'];
-        $task->task_status = $updateData['task_status'];
-        $task->task_status = $updateData['task_status'];
-        if (isset($updateData['task_status']) && $updateData['task_status'] == "processing") {
-            $updateData['start_time'] = Carbon::now();
-        } elseif (isset($updateData['task_status']) && $updateData['task_status'] == "done") {
-            $updateData['end_time'] = Carbon::now();
-        }
-        //$task->fill($updateData)->save();
-        // Generate task name based on the provided stations
-        if (!empty($updateData['id_destination_station']) && empty($updateData['id_start_station'])) {
-            $item = Item::find($updateData['id_item']);
-            $destinationStation = Station::find($updateData['id_destination_station']);
-            if (!$destinationStation) {
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Invalid input station ID provided',
-                    'data' => null
-                ], 400);
-            }
-            $new_task_name = "Put in item {$item->item_code} to {$destinationStation->station_name}";
-        } elseif (empty($updateData['id_destination_station']) && !empty($updateData['id_start_station'])) {
-            $item = Item::find($updateData['id_item']);
-            $startStation = Station::find($updateData['id_start_station']);
-            if (!$startStation) {
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Invalid output station ID provided',
-                    'data' => null
-                ], 400);
-            }
-            $new_task_name = "Take out item {$item->item_code} from {$startStation->station_name}";
-        } elseif (!empty($updateData['id_destination_station']) && !empty($updateData['id_start_station'])) {
-            $item = Item::find($updateData['id_item']);
-            $destinationStation = Station::find($updateData['id_destination_station']);
-            $startStation = Station::find($updateData['id_start_station']);
-            if (!$destinationStation || !$startStation) {
-                return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Invalid input or output station ID provided',
-                    'data' => null
-                ], 400);
-            }
-            $new_task_name = "Move item {$item->item_code} from {$startStation->station_name} to {$destinationStation->station_name}";
-        } else {
-            // If neither station is provided, task name cannot be generated
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'Please provide either input or output station',
-                'data' => null
-            ], 400);
-        }
-        $task->task_name = $new_task_name;
-        
-        if($task->save()){
-            return response()->json([
-                'status' => 'success',
-                'message' => "Task Data with code $task_code updated successfully",
-                'data' => $task
-            ], 200);
-        } else {
-            return response()->json([
-                'status' => 'failed',
-                'message' => "Task Data with code $task_code failed to update",
-                'data' => null
-            ], 400);
-            return response()->json([
-                'status' => 'failed',
-                'message' => "Task Data with code $task_code failed to update",
-                'data' => null
-            ], 500);
-        }
-    }
-    
- 
     public function showById($id)
     {
         $task = Task::find($id); 
@@ -912,70 +579,6 @@ class TasksController extends Controller
         ], 404);
     }
 
-
-    public function showByName($task_name)
-    {
-        
-        $task = Task::where('task_name', $task_name)->first();
-
-        if (is_null($task)) {
-            return response([
-                'success' => false,
-                'message' => "Data Task $task_name Not Found",
-                'data' => null
-            ], 404);
-        }
-       
-        if(!is_null($task)){
-            return response([
-                'success' => true,
-                'message' => "Retrieve Task Data $task_name Success",
-                'data' => $task
-            ], 200);
-        }
-
-        return response([
-            'success' => false,
-            'message' => "Task Data $task_name Not Found",
-            'data' => null
-        ], 404);
-    
-    }
-
-    public function showByCode($task_code)
-    {
-        $task = Task::where('task_code', $task_code)->first();
-
-        if (is_null($task)) {
-            return response([
-                'success' => false,
-                'message' => "Task Data with Code $task_code Not Found",
-                'data' => null
-            ], 404);
-        }
-       
-        if(!is_null($task)){
-            return response([
-                'success' => true,
-                'message' => "Retrieve Data with Code $task_code Success",
-                'data' => $task
-            ], 200);
-        }
-
-        return response([
-            'success' => false,
-            'message' => "Task Data with Code $task_code Not Found",
-            'data' => null
-        ], 404);
-    
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function destroyById($id)
     {
         $task = Task::find($id);
@@ -1000,52 +603,4 @@ class TasksController extends Controller
         ], 400);
     }
 
-    public function destroyByName($task_name)
-    {
-        $task = Task::where('task_name', $task_name)->first();
-
-        if(is_null($task)){
-            return response([
-                'message' => "Task Data with Name $task_name Not Found",
-                'data' => null
-            ], 404);
-        }
-
-        if($task->delete()){
-            return response([
-                'message' => "Delete Task Data with Name $task_name Success",
-                'data' => $task
-            ], 200);
-        }
-
-        return response([
-            'message' => "Delete $type_name Failed",
-            'data' => $task
-        ], 400);
-    }
-
-    public function destroyByCode($task_code)
-    {
-        $task = Task::where('task_code', $task_code)->first();
-
-        if(is_null($task)){
-            return response([
-                'message' => "Task Data with Code $task_code Not Found",
-                'data' => null
-            ], 404);
-        }
-
-        if($task->delete()){
-            return response([
-                'message' => "Delete Task Data with Code $task_code Success",
-                'data' => $task
-            ], 200);
-        }
-
-        return response([
-            'message' => "Delete $task_code Failed",
-            'data' => $task
-        ], 400);
-    }
-    
 }

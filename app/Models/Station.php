@@ -16,6 +16,10 @@ class Station extends Model
         'id_type',
         'x',
         'y',
+        'x_agv1',
+        'y_agv1',
+        'x_agv2',
+        'y_agv2',
         'stock',
         'max_capacity',
     ];

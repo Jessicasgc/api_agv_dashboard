@@ -24,8 +24,7 @@ class LogAction
     {
         $response = $next($request);
         Log::info('LogAction Middleware executed.');
-        // $modelClass = 'App\\Models\\' . ucfirst($request->route('model'));
-        // if (Auth::check() && ($request->isMethod('post') || $request->isMethod('put') || $request->isMethod('delete'))) {
+
         if ($request->isMethod('post') || $request->isMethod('put') || $request->isMethod('delete')) {
             $action = '';
             if ($request->isMethod('post')) {
@@ -36,12 +35,6 @@ class LogAction
                 $action = 'delete';
             }
 
-            // $modelInstance = $request->route()->parameter($request->route()->parameterNames()[0] ?? '');
-            
-            // Ensure we have a valid model instance and retrieve table name
-            // if ($modelInstance && method_exists($modelInstance, 'getTable')) {
-            //     $table = $modelInstance->getTable();
-            // } 
             $routeUri = $request->route()->uri();
 
             // Determine table name from route parameters

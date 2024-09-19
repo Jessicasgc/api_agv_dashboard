@@ -18,7 +18,6 @@ return new class extends Migration
             $table->string('agv_code');
             $table->string('agv_name');
             $table->string('agv_status');
-            // $table->boolean('is_charging');
             $table->point('position');
             $table->integer('power');
             $table->float('speed');
